@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1060651929162",
+    "project_id": "wanty-d606b",
+    "storage_bucket": "wanty-d606b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1060651929162:android:d4cbb66301fdbe4a2720b3",
+        "android_client_info": {
+          "package_name": "com.wanty.service"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1060651929162-q7r0mso7ct87r56ub06reo62p26ns3hf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wanty.service",
+            "certificate_hash": "0075fad247616e05b67313f499701e8a239809c3"
+          }
+        },
+        {
+          "client_id": "1060651929162-ju2vhdbks39bj2pt2lmr2li6h2f25a97.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCTsZB1pTIZtRqj5_EGRhpYIFZASGLCmKk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1060651929162-ju2vhdbks39bj2pt2lmr2li6h2f25a97.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
