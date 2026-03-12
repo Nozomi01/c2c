@@ -11,6 +11,7 @@ abstract class TransactionRepository {
     required String sellerId,
     required int price,
   });
+  Future<void> updateStatus(String id, TransactionStatus status);
 }
 
 class FirestoreTransactionRepository implements TransactionRepository {
@@ -53,6 +54,11 @@ class FirestoreTransactionRepository implements TransactionRepository {
       'createdAt': FieldValue.serverTimestamp(),
     });
     return doc.id;
+  }
+
+  @override
+  Future<void> updateStatus(String id, TransactionStatus status) async {
+    await _col.doc(id).update({'status': status.name});
   }
 }
 

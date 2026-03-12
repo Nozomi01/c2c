@@ -8,9 +8,11 @@ class OtpVerificationScreen extends ConsumerStatefulWidget {
   const OtpVerificationScreen({
     super.key,
     required this.verificationId,
+    this.phoneNumber,
   });
 
   final String verificationId;
+  final String? phoneNumber;
 
   @override
   ConsumerState<OtpVerificationScreen> createState() =>
@@ -25,12 +27,13 @@ class _OtpVerificationScreenState
   @override
   void initState() {
     super.initState();
-    // Ensure controller has the verification ID when opening directly.
     final controller = ref.read(phoneAuthControllerProvider.notifier);
     final state = ref.read(phoneAuthControllerProvider);
-    if (state.verificationId == null) {
-      controller.state = controller.state
-          .copyWith(verificationId: widget.verificationId);
+    if (state.verificationId == null || state.verificationId!.isEmpty) {
+      controller.state = controller.state.copyWith(
+        verificationId: widget.verificationId.isNotEmpty ? widget.verificationId : null,
+        lastVerifiedPhoneNumber: widget.phoneNumber ?? state.lastVerifiedPhoneNumber,
+      );
     }
   }
 
@@ -57,7 +60,7 @@ class _OtpVerificationScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'SMSで届いた6桁のコードを入力してください。',
+                'SMSで届いた6桁のコードを入力してください。届かない場合は再送信をお試しください。',
                 style: TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 16),
@@ -83,6 +86,17 @@ class _OtpVerificationScreenState
                     style: const TextStyle(color: Colors.red),
                   ),
                 ),
+              if (widget.phoneNumber != null && widget.phoneNumber!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: state.isLoading
+                      ? null
+                      : () async {
+                          await controller.startPhoneVerification(widget.phoneNumber!);
+                        },
+                  child: const Text('認証コードを再送信'),
+                ),
+              ],
               const Spacer(),
               SizedBox(
                 width: double.infinity,

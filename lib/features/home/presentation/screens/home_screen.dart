@@ -1,11 +1,11 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../services/domain/models/service.dart';
 import '../../../services/presentation/providers/service_list_provider.dart';
-import '../../../services/presentation/widgets/service_card.dart';
-import 'package:c2c/widgets/section_header.dart';
-import 'package:c2c/widgets/shimmer_list.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -14,54 +14,78 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final servicesAsync = ref.watch(recommendedServicesProvider);
 
-    return SafeArea(
-      child: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            floating: true,
-            snap: true,
-            title: const Text(
-              'ウォンティ',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            centerTitle: false,
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _SearchBar(),
-                  const SizedBox(height: 16),
-                  _CategoryGrid(),
-                  const SizedBox(height: 16),
-                  const SectionHeader(title: 'おすすめサービス'),
-                ],
-              ),
-            ),
-          ),
-          servicesAsync.when(
-            data: (services) => SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverList.separated(
-                itemCount: services.length,
-                itemBuilder: (context, index) => ServiceCard(service: services[index]),
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
-              ),
-            ),
-            loading: () => const ShimmerList(),
-            error: (e, st) => SliverToBoxAdapter(
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text('読み込みに失敗しました: $e'),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _SearchBar(),
+                    ),
+                    const SizedBox(width: 8),
+                    _NotificationButton(),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            const SliverToBoxAdapter(child: _PromoBanner()),
+            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            SliverToBoxAdapter(
+              child: _SectionHeader(
+                title: '新着ユーザーから探す',
+                onTap: () {},
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+            const SliverToBoxAdapter(child: _NewUsersRow()),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            SliverToBoxAdapter(
+              child: _SectionHeader(
+                title: 'カテゴリから探す',
+                onTap: () {},
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+            const SliverToBoxAdapter(child: _CategoryGrid()),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            SliverToBoxAdapter(
+              child: _SectionHeader(
+                title: '新着出品から探す',
+                onTap: () => context.go('/listings'),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 200,
+                child: servicesAsync.when(
+                  data: (services) => ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: services.length,
+                    itemBuilder: (context, index) {
+                      return RepaintBoundary(
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: _NewListingCard(service: services[index]),
+                        ),
+                      );
+                    },
+                  ),
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('読み込みに失敗しました', style: TextStyle(color: AppColors.textSecondary))),
+                ),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          ],
+        ),
       ),
     );
   }
@@ -70,84 +94,291 @@ class HomeScreen extends ConsumerWidget {
 class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      readOnly: true,
-      onTap: () {
-        // TODO: navigate to search screen
-      },
-      decoration: const InputDecoration(
-        hintText: 'サービスを検索',
-        prefixIcon: Icon(Icons.search),
+    return InkWell(
+      onTap: () {},
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.border.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.search, size: 22, color: AppColors.textSecondary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '年齢、身長検索が可能になりました',
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          onPressed: () {},
+          icon: const Icon(Icons.notifications_outlined, size: 26),
+        ),
+        Positioned(
+          right: 8,
+          top: 8,
+          child: Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PromoBanner extends StatelessWidget {
+  const _PromoBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 72,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: ['VA', 'OKANE', 'RK LLC', 'ISO', 'K'].map((label) {
+          return Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.onTap});
+
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NewUsersRow extends StatelessWidget {
+  const _NewUsersRow();
+
+  static const _placeholderNames = ['中村麻里子', '山田花子', '佐藤美咲', '鈴木さくら', '高橋あおい'];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 100,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _placeholderNames.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFE3F2FD),
+                    border: Border.all(color: const Color(0xFFBBDEFB), width: 2),
+                  ),
+                  child: const Icon(Icons.person, size: 28, color: Color(0xFF64B5F6)),
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: 72,
+                  child: Text(
+                    _placeholderNames[index],
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 }
 
 class _CategoryGrid extends StatelessWidget {
-  final categories = const [
-    '話す・相談',
-    'アドバイス',
-    'カフェ・ご飯',
-    '趣味・アクティビティ',
-    'おでかけ',
-    'その他',
+  const _CategoryGrid();
+
+  static const _categories = [
+    ('💬 トーク・雑談', Color(0xFFFFF9C4)),
+    ('💡 相談・アドバイス', Color(0xFFB3E5FC)),
+    ('☕ カフェ・ご飯', Color(0xFFF8BBD9)),
+    ('🎮 趣味・遊び', Color(0xFFE1BEE7)),
+    ('🚶 お出かけ・同行', Color(0xFFC8E6C9)),
+    ('✨ その他', Color(0xFFFFCCBC)),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
         crossAxisCount: 3,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childAspectRatio: 0.95,
-      ),
-      itemCount: categories.length,
-      itemBuilder: (context, index) {
-        final label = categories[index];
-        return InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            // TODO: navigate to filtered listing
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.all(6),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.primarySoft,
-                  child: Icon(
-                    Icons.favorite,
-                    size: 18,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 1.05,
+        children: List.generate(_categories.length, (index) {
+          final (label, color) = _categories[index];
+          return InkWell(
+            onTap: () {},
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(
                   label,
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        }),
+      ),
     );
   }
 }
 
+class _NewListingCard extends StatelessWidget {
+  const _NewListingCard({required this.service});
+
+  final Service service;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = service.images.isNotEmpty ? service.images.first : null;
+    return InkWell(
+      onTap: () => context.push('/services/${service.id}'),
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        width: 140,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 140,
+                height: 120,
+                child: imageUrl == null
+                    ? Container(
+                        color: AppColors.primarySoft,
+                        child: const Icon(Icons.image, color: AppColors.primary, size: 40),
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                      ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              service.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '¥${service.price} / 時間',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

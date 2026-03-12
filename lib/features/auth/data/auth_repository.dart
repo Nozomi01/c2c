@@ -46,12 +46,16 @@ class FirebaseAuthRepository implements AuthRepository {
   }) async {
     await _auth.verifyPhoneNumber(
       phoneNumber: phoneNumber,
+      timeout: const Duration(seconds: 90),
       verificationCompleted: (credential) async {
-        // For simplicity we don't auto-sign in here; rely on code entry.
+        // Auto sign-in when SMS is auto-retrieved (e.g. Android); optional.
       },
       verificationFailed: onError,
-      codeSent: (verificationId, _) => codeSent(verificationId),
-      codeAutoRetrievalTimeout: (_) {},
+      codeSent: (verificationId, [int? _]) => codeSent(verificationId),
+      codeAutoRetrievalTimeout: (_) {
+        // SMS auto-retrieval timed out; user can still enter code manually.
+        // Do not treat as error - codeSent was already called with verificationId.
+      },
     );
   }
 

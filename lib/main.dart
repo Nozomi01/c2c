@@ -10,6 +10,11 @@ Future<void> main() async {
   await FirebaseInitializer.initialize();
 
   runApp(const ProviderScope(child: WantyApp()));
+
+  // Defer non-critical init (Realtime DB, Stripe) so first frame paints sooner and reduces frame drops.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    FirebaseInitializer.deferNonCriticalInit();
+  });
 }
 
 class WantyApp extends ConsumerWidget {

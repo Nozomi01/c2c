@@ -21,11 +21,14 @@ class Message with _$Message {
 
   factory Message.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
+    final createdAt = data['createdAt'];
+    final createdAtStr = createdAt is Timestamp
+        ? createdAt.toDate().toIso8601String()
+        : DateTime.now().toIso8601String();
     return Message.fromJson({
       'id': doc.id,
       ...data,
-      'createdAt':
-          (data['createdAt'] as Timestamp).toDate().toIso8601String(),
+      'createdAt': createdAtStr,
     });
   }
 }

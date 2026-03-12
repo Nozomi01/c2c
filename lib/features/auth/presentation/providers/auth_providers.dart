@@ -20,21 +20,25 @@ class PhoneAuthState {
     this.isLoading = false,
     this.errorMessage,
     this.verificationId,
+    this.lastVerifiedPhoneNumber,
   });
 
   final bool isLoading;
   final String? errorMessage;
   final String? verificationId;
+  final String? lastVerifiedPhoneNumber;
 
   PhoneAuthState copyWith({
     bool? isLoading,
     String? errorMessage,
     String? verificationId,
+    String? lastVerifiedPhoneNumber,
   }) {
     return PhoneAuthState(
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
       verificationId: verificationId ?? this.verificationId,
+      lastVerifiedPhoneNumber: lastVerifiedPhoneNumber ?? this.lastVerifiedPhoneNumber,
     );
   }
 }
@@ -47,7 +51,11 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
   AuthRepository get _repo => _read.read(authRepositoryProvider);
 
   Future<void> startPhoneVerification(String phoneNumber) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(
+      isLoading: true,
+      errorMessage: null,
+      lastVerifiedPhoneNumber: phoneNumber,
+    );
     await _repo.verifyPhoneNumber(
       phoneNumber: phoneNumber,
       codeSent: (verificationId) {
@@ -57,9 +65,10 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
         );
       },
       onError: (e) {
+        final message = _userFriendlyAuthError(e);
         state = state.copyWith(
           isLoading: false,
-          errorMessage: e.message ?? e.code,
+          errorMessage: message,
         );
       },
     );
@@ -90,4 +99,19 @@ final phoneAuthControllerProvider =
     StateNotifierProvider<PhoneAuthController, PhoneAuthState>((ref) {
   return PhoneAuthController(ref);
 });
+
+String _userFriendlyAuthError(FirebaseAuthException e) {
+  final code = e.code.toLowerCase();
+  final msg = e.message ?? e.code;
+  if (code.contains('recaptcha') || code.contains('captcha')) {
+    return '認証の準備ができません。実機でお試しになるか、しばらく経ってから再度お試しください。';
+  }
+  if (code.contains('too-many-requests')) {
+    return 'リクエストが多すぎます。しばらく経ってから再度お試しください。';
+  }
+  if (code.contains('invalid-phone')) {
+    return '電話番号の形式が正しくありません。国番号から入力してください。';
+  }
+  return msg;
+}
 

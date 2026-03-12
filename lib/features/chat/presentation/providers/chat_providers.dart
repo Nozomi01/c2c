@@ -19,6 +19,18 @@ final userChatsProvider =
   return repo.watchUserChats(userId);
 });
 
+final userChatsWithUnreadProvider =
+    StreamProvider.family<List<ChatWithUnread>, String>((ref, userId) {
+  final repo = ref.watch(chatRepositoryProvider);
+  return repo.watchUserChatsWithUnread(userId);
+});
+
+final chatDetailProvider =
+    StreamProvider.family<Chat?, String>((ref, chatId) {
+  final repo = ref.watch(chatRepositoryProvider);
+  return repo.watchChat(chatId);
+});
+
 final messagesProvider =
     StreamProvider.family<List<Message>, String>((ref, chatId) {
   final repo = ref.watch(chatRepositoryProvider);

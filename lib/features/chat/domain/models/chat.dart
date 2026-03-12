@@ -26,3 +26,10 @@ class Chat with _$Chat {
   }
 }
 
+/// Chat with unread count for the current user (from Firestore 'unread' map).
+class ChatWithUnread {
+  const ChatWithUnread(this.chat, this.unreadCount);
+  final Chat chat;
+  final int unreadCount;
+}
+

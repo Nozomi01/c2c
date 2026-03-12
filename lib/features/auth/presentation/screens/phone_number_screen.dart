@@ -26,6 +26,17 @@ class _PhoneNumberScreenState extends ConsumerState<PhoneNumberScreen> {
     final state = ref.watch(phoneAuthControllerProvider);
     final controller = ref.read(phoneAuthControllerProvider.notifier);
 
+    ref.listen<PhoneAuthState>(phoneAuthControllerProvider, (prev, next) {
+      if (next.verificationId != null &&
+          prev?.verificationId != next.verificationId &&
+          context.mounted) {
+        context.push('/auth/phone/verify', extra: [
+          next.verificationId,
+          next.lastVerifiedPhoneNumber,
+        ]);
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('電話番号でログイン'),
@@ -78,14 +89,8 @@ class _PhoneNumberScreenState extends ConsumerState<PhoneNumberScreen> {
                           if (!_formKey.currentState!.validate()) return;
                           await controller
                               .startPhoneVerification(_phoneController.text.trim());
-                          final verificationId =
-                              ref.read(phoneAuthControllerProvider).verificationId;
-                          if (verificationId != null && mounted) {
-                            context.push(
-                              '/auth/phone/verify',
-                              extra: verificationId,
-                            );
-                          }
+                          // Navigation to OTP screen is handled by ref.listen when verificationId is set
+                          // (codeSent callback may fire after verifyPhoneNumber future resolves).
                         },
                   child: Text(state.isLoading ? '送信中...' : '認証コードを送信'),
                 ),

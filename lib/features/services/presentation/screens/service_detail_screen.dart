@@ -1,9 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../chat/presentation/providers/chat_providers.dart';
 import '../../domain/models/service.dart';
 import '../providers/service_detail_provider.dart';
 
@@ -17,149 +20,375 @@ class ServiceDetailScreen extends ConsumerWidget {
     final serviceAsync = ref.watch(serviceDetailProvider(serviceId));
 
     return Scaffold(
-      appBar: AppBar(),
+      backgroundColor: AppColors.background,
       body: serviceAsync.when(
-        data: (service) => _Content(service: service),
+        data: (service) => _Content(
+          service: service,
+          onChatPressed: () => _openChat(context, ref, service),
+        ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('エラーが発生しました: $e')),
       ),
     );
   }
+
+  static Future<void> _openChat(BuildContext context, WidgetRef ref, Service service) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.uid == service.ownerId) return;
+    final chatId = await ref.read(chatRepositoryProvider).findOrCreateChat(user.uid, service.ownerId);
+    if (context.mounted) context.push('/chats/$chatId');
+  }
 }
 
 class _Content extends StatelessWidget {
-  const _Content({required this.service});
+  const _Content({required this.service, required this.onChatPressed});
 
   final Service service;
+  final VoidCallback onChatPressed;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ImagePager(images: service.images),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  service.title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  service.location,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Text(
-                      '¥${service.price}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 24,
+                _ImageHeader(images: service.images),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        service.title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${service.duration}分',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
+                      const SizedBox(height: 12),
+                      Text(
+                        '¥${NumberFormat('#,###').format(service.price)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 26,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'サービス内容',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.textSecondary),
+                          const SizedBox(width: 6),
+                          Text(
+                            service.category,
+                            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(width: 16),
+                          Icon(Icons.schedule, size: 18, color: AppColors.textSecondary),
+                          const SizedBox(width: 6),
+                          Text(
+                            _formatRelativeTime(service.createdAt),
+                            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      _ProductInfoBox(service: service),
+                      const SizedBox(height: 20),
+                      _SellerSection(ownerId: service.ownerId),
+                      const SizedBox(height: 20),
+                      const Text(
+                        '商品の詳細',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        service.description,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(service.description),
-                const SizedBox(height: 16),
-                const Text(
-                  '対応方法',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    if (service.onlineAvailable)
-                      const Chip(label: Text('オンライン')),
-                    if (service.offlineAvailable)
-                      const Chip(label: Text('対面')),
-                  ],
                 ),
               ],
             ),
           ),
         ),
-        _BottomBar(service: service),
+        _BottomBar(service: service, onChatPressed: onChatPressed),
       ],
     );
   }
+
+  String _formatRelativeTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final diff = now.difference(dateTime);
+    if (diff.inDays > 0) return '${diff.inDays}日前';
+    if (diff.inHours > 0) return '${diff.inHours}時間前';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}分前';
+    return 'たった今';
+  }
 }
 
-class _ImagePager extends StatelessWidget {
-  const _ImagePager({required this.images});
+class _ImageHeader extends StatelessWidget {
+  const _ImageHeader({required this.images});
 
   final List<String> images;
 
   @override
   Widget build(BuildContext context) {
-    if (images.isEmpty) {
-      return Container(
-        height: 240,
-        color: AppColors.primarySoft,
-        child: const Center(
-          child: Icon(
-            Icons.person,
-            size: 64,
-            color: AppColors.primary,
+    return Stack(
+      children: [
+        SizedBox(
+          height: 280,
+          width: double.infinity,
+          child: images.isEmpty
+              ? Container(
+                  color: AppColors.primarySoft,
+                  child: const Center(
+                    child: Icon(Icons.image, size: 64, color: AppColors.primary),
+                  ),
+                )
+              : PageView.builder(
+                  itemCount: images.length,
+                  itemBuilder: (context, index) => CachedNetworkImage(
+                    imageUrl: images[index],
+                    fit: BoxFit.cover,
+                  ),
+                ),
+        ),
+        Positioned(
+          left: 16,
+          top: MediaQuery.of(context).padding.top + 8,
+          child: _CircleIconButton(
+            icon: Icons.arrow_back,
+            onPressed: () => context.pop(),
           ),
         ),
-      );
-    }
+        Positioned(
+          right: 16,
+          top: MediaQuery.of(context).padding.top + 8,
+          child: _CircleIconButton(
+            icon: Icons.share_outlined,
+            onPressed: () {},
+          ),
+        ),
+      ],
+    );
+  }
+}
 
-    return SizedBox(
-      height: 240,
-      child: PageView.builder(
-        itemCount: images.length,
-        itemBuilder: (context, index) {
-          return CachedNetworkImage(
-            imageUrl: images[index],
-            fit: BoxFit.cover,
-          );
-        },
+class _CircleIconButton extends StatelessWidget {
+  const _CircleIconButton({required this.icon, required this.onPressed});
+
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.4),
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onPressed,
+        customBorder: const CircleBorder(),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Icon(icon, color: Colors.white, size: 22),
+        ),
       ),
     );
   }
 }
 
-class _BottomBar extends StatelessWidget {
-  const _BottomBar({required this.service});
+class _ProductInfoBox extends StatelessWidget {
+  const _ProductInfoBox({required this.service});
 
   final Service service;
+
+  String get _durationLabel {
+    if (service.duration < 60) return '${service.duration}分';
+    if (service.duration == 60) return '1時間';
+    final h = service.duration ~/ 60;
+    final m = service.duration % 60;
+    if (m == 0) return '${h}時間';
+    return '${h}時間${m}分';
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.border.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '商品の情報',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _InfoRow(
+            label: '実施形式',
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                if (service.onlineAvailable)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.blue.shade700),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text('オンライン', style: TextStyle(fontSize: 13, color: Colors.blue.shade700)),
+                  ),
+                if (service.offlineAvailable)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF81C784),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text('対面', style: TextStyle(fontSize: 13, color: Colors.white)),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          _InfoRow(
+            label: '実施場所',
+            child: Text(
+              '${service.location}${service.onlineAvailable ? ' (オンラインも可)' : ''}',
+              style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _InfoRow(
+            label: '実施日程',
+            child: Text(
+              '要相談',
+              style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _InfoRow(
+            label: '所要時間',
+            child: Text(_durationLabel, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 4),
+        child,
+      ],
+    );
+  }
+}
+
+class _SellerSection extends StatelessWidget {
+  const _SellerSection({required this.ownerId});
+
+  final String ownerId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 28,
+          backgroundColor: AppColors.primarySoft,
+          child: const Icon(Icons.person, size: 32, color: AppColors.primary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'みみちゃん',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  ...List.generate(4, (_) => const Icon(Icons.star, size: 16, color: Color(0xFFFFB300))),
+                  const Icon(Icons.star_half, size: 16, color: Color(0xFFFFB300)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '67',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(width: 12),
+                  Icon(Icons.verified, size: 18, color: Colors.green.shade600),
+                  const SizedBox(width: 4),
+                  Text(
+                    '本人確認済',
+                    style: TextStyle(fontSize: 13, color: Colors.green.shade700),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BottomBar extends StatelessWidget {
+  const _BottomBar({required this.service, required this.onChatPressed});
+
+  final Service service;
+  final VoidCallback onChatPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
       decoration: const BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -167,34 +396,34 @@ class _BottomBar extends StatelessWidget {
             color: Colors.black12,
             blurRadius: 4,
             offset: Offset(0, -2),
-          )
+          ),
         ],
       ),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () {
-              // TODO: favorite
-            },
-            icon: const Icon(Icons.favorite_border),
+          OutlinedButton(
+            onPressed: () {},
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              side: const BorderSide(color: AppColors.border),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Icon(Icons.favorite_border, size: 24),
           ),
-          const SizedBox(width: 4),
-          IconButton(
-            onPressed: () {
-              // TODO: open chat (after purchase)
-            },
-            icon: const Icon(Icons.chat_bubble_outline),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: onChatPressed,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              side: const BorderSide(color: AppColors.border),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Icon(Icons.mail_outline, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-              ),
+            flex: 2,
+            child: ElevatedButton.icon(
               onPressed: () {
                 context.pushNamed(
                   'transactionDetail',
@@ -202,7 +431,16 @@ class _BottomBar extends StatelessWidget {
                   extra: service,
                 );
               },
-              child: const Text('購入手続きへ'),
+              icon: const Icon(Icons.check, size: 20),
+              label: const Text('購入へ'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
           ),
         ],
@@ -210,4 +448,3 @@ class _BottomBar extends StatelessWidget {
     );
   }
 }
-

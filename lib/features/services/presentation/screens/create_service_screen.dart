@@ -1,7 +1,13 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:dropdown_flutter/custom_dropdown.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
@@ -56,7 +62,8 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
   _DeliveryMode _deliveryMode = _DeliveryMode.both;
   _ScheduleMode _scheduleMode = _ScheduleMode.specify;
   static const _durationOptions = [30, 60, 90, 120];
-  final List<String> _imageUrls = [];
+  final List<XFile> _imageFiles = [];
+  static const _maxImages = 10;
   DateTime? _selectedDate;
   final List<String> _selectedTimeSlots = [];
   final List<_ScheduleEntry> _scheduleEntries = [];
@@ -114,7 +121,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.go('/home'),
         ),
         title: const Text('新規出品'),
         centerTitle: true,
@@ -131,30 +138,65 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                     // 商品画像
                     const Text('商品画像', style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
-                    InkWell(
-                      onTap: () {
-                        // TODO: 画像アップロード
-                      },
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.upload_file, size: 32, color: Colors.grey.shade600),
-                            const SizedBox(height: 8),
-                            Text('追加', style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w500)),
-                          ],
-                        ),
-                      ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ..._imageFiles.asMap().entries.map((e) {
+                          final i = e.key;
+                          final xFile = e.value;
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: SizedBox(
+                                  width: 80,
+                                  height: 80,
+                                  child: _buildImageThumbnail(xFile),
+                                ),
+                              ),
+                              Positioned(
+                                top: -4,
+                                right: -4,
+                                child: GestureDetector(
+                                  onTap: () => setState(() => _imageFiles.removeAt(i)),
+                                  child: const CircleAvatar(
+                                    radius: 12,
+                                    backgroundColor: Colors.black54,
+                                    child: Icon(Icons.close, size: 16, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                        if (_imageFiles.length < _maxImages)
+                          InkWell(
+                            onTap: _pickImages,
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_photo_alternate, size: 28, color: Colors.grey.shade600),
+                                  const SizedBox(height: 4),
+                                  Text('追加', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
-                    Text('最大10枚まで追加できます', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    Text('最大$_maxImages枚まで追加できます', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                     const SizedBox(height: 16),
 
                     // タイトル
@@ -446,7 +488,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                           child: OutlinedButton(
                             onPressed: () {
                               // TODO: 下書き保存
-                              Navigator.of(context).pop();
+                              context.go('/home');
                             },
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -466,6 +508,23 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                                     if (!_formKey.currentState!.validate()) return;
                                     setState(() => _submitting = true);
                                     try {
+                                      List<String> urls = [];
+                                      try {
+                                        urls = await _uploadImages(user.uid);
+                                      } catch (e, st) {
+                                        if (!mounted) return;
+                                        debugPrint('Image upload error: $e\n$st');
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              '画像のアップロードに失敗しました。'
+                                              'Firebase コンソールで Storage が有効か確認してください。',
+                                            ),
+                                            backgroundColor: Colors.red.shade700,
+                                          ),
+                                        );
+                                        return;
+                                      }
                                       final service = Service(
                                         id: '',
                                         ownerId: user.uid,
@@ -477,13 +536,13 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                                         location: _locationController.text.trim().isEmpty ? '東京都' : _locationController.text.trim(),
                                         onlineAvailable: _online,
                                         offlineAvailable: _offline,
-                                        images: _imageUrls,
+                                        images: urls,
                                         rating: 0,
                                         reviewCount: 0,
                                         createdAt: DateTime.now(),
                                       );
                                       await repo.create(service);
-                                      if (mounted) Navigator.of(context).pop();
+                                      if (mounted) context.go('/home');
                                     } finally {
                                       if (mounted) setState(() => _submitting = false);
                                     }
@@ -503,6 +562,75 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
               ),
             ),
     );
+  }
+
+  Future<void> _pickImages() async {
+    final remaining = _maxImages - _imageFiles.length;
+    if (remaining <= 0) return;
+    final picker = ImagePicker();
+    final List<XFile> list;
+    if (remaining == 1) {
+      final x = await picker.pickImage(source: ImageSource.gallery);
+      list = x != null ? [x] : [];
+    } else {
+      list = await picker.pickMultiImage(limit: remaining);
+    }
+    if (list.isEmpty) return;
+    if (!mounted) return;
+    setState(() {
+      for (final x in list) {
+        if (_imageFiles.length < _maxImages) _imageFiles.add(x);
+      }
+    });
+  }
+
+  Widget _buildImageThumbnail(XFile xFile) {
+    final path = xFile.path;
+    if (path.isNotEmpty) {
+      try {
+        final file = File(path);
+        if (file.existsSync()) return Image.file(file, fit: BoxFit.cover);
+      } catch (_) {}
+    }
+    return FutureBuilder<Uint8List>(
+      future: xFile.readAsBytes(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          return Image.memory(snapshot.data!, fit: BoxFit.cover);
+        }
+        return Container(color: Colors.grey.shade300, child: const Center(child: CircularProgressIndicator()));
+      },
+    );
+  }
+
+  Future<List<String>> _uploadImages(String userId) async {
+    if (_imageFiles.isEmpty) return [];
+    final storage = FirebaseStorage.instance;
+    final ref = storage.ref().child('services').child(userId);
+    final urls = <String>[];
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    for (var i = 0; i < _imageFiles.length; i++) {
+      final xFile = _imageFiles[i];
+      final ext = xFile.name.split('.').length > 1 ? xFile.name.split('.').last : 'jpg';
+      final fileRef = ref.child('${ts}_$i.$ext');
+      final bytes = await xFile.readAsBytes();
+      await fileRef.putData(bytes);
+      String url = await _getDownloadUrlWithRetry(fileRef);
+      urls.add(url);
+    }
+    return urls;
+  }
+
+  Future<String> _getDownloadUrlWithRetry(Reference ref, {int maxAttempts = 3}) async {
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        return await ref.getDownloadURL();
+      } catch (_) {
+        if (attempt == maxAttempts - 1) rethrow;
+        await Future<void>.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+      }
+    }
+    throw StateError('getDownloadURL failed after $maxAttempts attempts');
   }
 
   Widget _buildTapField({
@@ -602,33 +730,48 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: MediaQuery.of(ctx).padding.bottom + 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('時間帯を選択', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
-            ..._timeSlots.map((slot) => ListTile(
-                  title: Text(slot),
-                  onTap: () {
-                    setState(() {
-                      if (!_selectedTimeSlots.contains(slot)) {
-                        _selectedTimeSlots.add(slot);
-                      }
-                    });
-                    Navigator.pop(ctx);
-                  },
-                )),
-          ],
-        ),
-      ),
+      builder: (ctx) {
+        final maxH = MediaQuery.of(ctx).size.height * 0.5;
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).padding.bottom + 16,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxH),
+            child: Column(
+              mainAxisSize: MainAxisSize.max,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('時間帯を選択', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _timeSlots.length,
+                    itemBuilder: (_, i) {
+                      final slot = _timeSlots[i];
+                      return ListTile(
+                        title: Text(slot),
+                        onTap: () {
+                          setState(() {
+                            if (!_selectedTimeSlots.contains(slot)) {
+                              _selectedTimeSlots.add(slot);
+                            }
+                          });
+                          Navigator.pop(ctx);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

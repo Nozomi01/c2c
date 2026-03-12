@@ -2,7 +2,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../../core/config/app_theme.dart';
+import '../../domain/models/chat.dart';
 import '../providers/chat_providers.dart';
 
 class ChatListScreen extends ConsumerWidget {
@@ -12,40 +15,193 @@ class ChatListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text('ログインが必要です')),
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: _buildAppBar(context),
+        body: const Center(child: Text('ログインが必要です')),
       );
     }
 
-    final chatsAsync = ref.watch(userChatsProvider(user.uid));
+    final chatsAsync = ref.watch(userChatsWithUnreadProvider(user.uid));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('メッセージ'),
-      ),
+      backgroundColor: AppColors.background,
+      appBar: _buildAppBar(context),
       body: chatsAsync.when(
-        data: (chats) => ListView.separated(
-          itemCount: chats.length,
-          separatorBuilder: (context, index) => const Divider(height: 0),
-          itemBuilder: (context, index) {
-            final chat = chats[index];
-            return ListTile(
-              title: Text(chat.lastMessage ?? '新しいチャット'),
-              subtitle: Text(chat.id),
-              onTap: () {
-                context.pushNamed(
-                  'chatThread',
-                  pathParameters: {'id': chat.id},
-                );
-              },
+        data: (chatsWithUnread) {
+          if (chatsWithUnread.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.chat_bubble_outline, size: 64, color: AppColors.textSecondary),
+                  SizedBox(height: 16),
+                  Text(
+                    'メッセージはありません',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
+                  ),
+                ],
+              ),
             );
-          },
-        ),
-        loading: () =>
-            const Center(child: CircularProgressIndicator.adaptive()),
-        error: (e, st) => Center(child: Text('エラー: $e')),
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: chatsWithUnread.length,
+            separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+            itemBuilder: (context, index) {
+              final item = chatsWithUnread[index];
+              final otherId = item.chat.users.firstWhere((u) => u != user.uid, orElse: () => '');
+              return _ChatListTile(
+                chat: item.chat,
+                unreadCount: item.unreadCount,
+                currentUserId: user.uid,
+                otherUserId: otherId,
+                onTap: () => context.push('/chats/${item.chat.id}'),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('エラー: $e')),
       ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      title: const Text(
+        'メッセージ',
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+      ),
+      centerTitle: true,
+      backgroundColor: Colors.white,
+      elevation: 0,
+      surfaceTintColor: Colors.white,
     );
   }
 }
 
+class _ChatListTile extends StatelessWidget {
+  const _ChatListTile({
+    required this.chat,
+    required this.unreadCount,
+    required this.currentUserId,
+    required this.otherUserId,
+    required this.onTap,
+  });
+
+  final Chat chat;
+  final int unreadCount;
+  final String currentUserId;
+  final String otherUserId;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = otherUserId.isEmpty ? 'チャット' : 'ユーザー';
+    final timeStr = chat.updatedAt != null
+        ? DateFormat('M/d HH:mm').format(chat.updatedAt!)
+        : '';
+
+    return Material(
+      color: Colors.white,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: AppColors.primarySoft,
+                    child: Text(
+                      title.isNotEmpty ? title[0] : '?',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: -4,
+                      top: -4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.rectangle,
+                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 18),
+                        child: Text(
+                          unreadCount > 99 ? '99+' : '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (timeStr.isNotEmpty)
+                          Text(
+                            timeStr,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      chat.lastMessage ?? 'メッセージを送信しましょう',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: unreadCount > 0 ? AppColors.textPrimary : AppColors.textSecondary,
+                        fontWeight: unreadCount > 0 ? FontWeight.w500 : FontWeight.normal,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
