@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_line_sdk/flutter_line_sdk.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -112,8 +114,25 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<UserCredential> signInWithLine() {
-    throw UnimplementedError('Sign in with LINE is not implemented yet.');
+  Future<UserCredential> signInWithLine() async {
+    final result = await LineSDK.instance.login();
+    final accessToken = result.accessToken.value;
+    if (accessToken.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'line_no_token',
+        message: 'LINE login did not return an access token',
+      );
+    }
+    final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
+    final response = await functions.httpsCallable('createLineCustomToken').call({'accessToken': accessToken});
+    final customToken = response.data['customToken'] as String?;
+    if (customToken == null || customToken.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'line_custom_token_failed',
+        message: 'Failed to get Firebase token from LINE',
+      );
+    }
+    return _auth.signInWithCustomToken(customToken);
   }
 
   @override

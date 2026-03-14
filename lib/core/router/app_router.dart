@@ -10,6 +10,7 @@ import '../../features/auth/presentation/screens/otp_verification_screen.dart';
 import '../../features/services/presentation/screens/service_list_screen.dart';
 import '../../features/services/presentation/screens/service_detail_screen.dart';
 import '../../features/services/presentation/screens/create_service_screen.dart';
+import '../../features/services/presentation/screens/category_service_list_screen.dart';
 import '../../features/chat/presentation/screens/chat_list_screen.dart';
 import '../../features/chat/presentation/screens/chat_thread_screen.dart';
 import '../../features/profile/presentation/screens/account_settings_screen.dart';
@@ -23,6 +24,8 @@ import '../../features/profile/presentation/screens/my_transactions_screen.dart'
 import '../../features/profile/presentation/screens/notification_settings_screen.dart';
 import '../../features/profile/presentation/screens/profile_edit_screen.dart';
 import '../../features/profile/presentation/screens/withdraw_screen.dart';
+import '../../features/profile/presentation/screens/identity_verify_screen.dart';
+import '../../features/notifications/presentation/screens/notification_list_screen.dart';
 import '../../features/transactions/presentation/screens/transaction_detail_screen.dart';
 import '../../features/transactions/presentation/screens/payment_method_screen.dart';
 import '../../features/transactions/presentation/screens/purchase_complete_screen.dart';
@@ -85,6 +88,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/listings',
                 name: 'listings',
                 builder: (context, state) => const ServiceListScreen(),
+              ),
+              GoRoute(
+                path: '/listings/category',
+                name: 'categoryListings',
+                builder: (context, state) {
+                  final category =
+                      state.uri.queryParameters['name'] ?? 'カテゴリ';
+                  return CategoryServiceListScreen(category: category);
+                },
               ),
             ],
           ),
@@ -202,6 +214,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/help',
         name: 'help',
         builder: (context, state) => const HelpContactScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        name: 'notifications',
+        builder: (context, state) => const NotificationListScreen(),
+      ),
+      GoRoute(
+        path: '/settings/identity',
+        name: 'identityVerify',
+        builder: (context, state) => const IdentityVerifyScreen(),
       ),
     ],
   );

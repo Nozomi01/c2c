@@ -1,7 +1,13 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
@@ -21,6 +27,7 @@ class ChatThreadScreen extends ConsumerStatefulWidget {
 class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   final _controller = TextEditingController();
   bool _hasMarkedRead = false;
+  bool _sendingAttachment = false;
 
   @override
   void dispose() {
@@ -102,6 +109,20 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                IconButton(
+                  onPressed: _sendingAttachment
+                      ? null
+                      : () => _pickAndSendImage(repo, user.uid),
+                  icon: const Icon(Icons.photo_outlined),
+                  color: AppColors.textSecondary,
+                ),
+                IconButton(
+                  onPressed: _sendingAttachment
+                      ? null
+                      : () => _pickAndSendFile(repo, user.uid),
+                  icon: const Icon(Icons.attach_file),
+                  color: AppColors.textSecondary,
+                ),
                 Expanded(
                   child: TextField(
                     controller: _controller,
@@ -149,6 +170,123 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       senderId: uid,
       text: text,
     );
+  }
+
+  Future<void> _pickAndSendImage(ChatRepository repo, String uid) async {
+    final picker = ImagePicker();
+    final XFile? picked =
+        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (picked == null) return;
+
+    setState(() => _sendingAttachment = true);
+    try {
+      final bytes = await picked.readAsBytes();
+      final ext = picked.name.split('.').length > 1
+          ? picked.name.split('.').last
+          : 'jpg';
+      final url = await _uploadChatBytes(bytes, '$uid-image', ext);
+      if (!mounted) return;
+      await repo.sendMessage(
+        chatId: widget.chatId,
+        senderId: uid,
+        text: '画像を送信しました',
+        imageUrl: url,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('画像の送信に失敗しました: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _sendingAttachment = false);
+      }
+    }
+  }
+
+  Future<void> _pickAndSendFile(ChatRepository repo, String uid) async {
+    final result = await FilePicker.platform.pickFiles(withData: true);
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    final bytes = file.bytes;
+    if (bytes == null) {
+      // Fallback to reading from path if available.
+      if (file.path == null) return;
+      final f = File(file.path!);
+      if (!f.existsSync()) return;
+      final fileBytes = await f.readAsBytes();
+      await _sendFileBytes(repo, uid, file.name, fileBytes);
+    } else {
+      await _sendFileBytes(repo, uid, file.name, bytes);
+    }
+  }
+
+  Future<void> _sendFileBytes(
+    ChatRepository repo,
+    String uid,
+    String name,
+    Uint8List bytes,
+  ) async {
+    setState(() => _sendingAttachment = true);
+    try {
+      final ext = name.split('.').length > 1 ? name.split('.').last : 'dat';
+      final url = await _uploadChatBytes(bytes, '$uid-file', ext);
+      if (!mounted) return;
+      final text = 'ファイルを送信しました: $name\n$url';
+      await repo.sendMessage(
+        chatId: widget.chatId,
+        senderId: uid,
+        text: text,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('ファイルの送信に失敗しました: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _sendingAttachment = false);
+      }
+    }
+  }
+
+  Future<String> _uploadChatBytes(
+    Uint8List bytes,
+    String prefix,
+    String ext,
+  ) async {
+    final storage = FirebaseStorage.instance;
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final ref = storage
+        .ref()
+        .child('chats')
+        .child(widget.chatId)
+        .child('$prefix-$ts.$ext');
+    await ref.putData(bytes);
+    return _getDownloadUrlWithRetry(ref);
+  }
+
+  Future<String> _getDownloadUrlWithRetry(
+    Reference ref, {
+    int maxAttempts = 3,
+  }) async {
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        return await ref.getDownloadURL();
+      } catch (_) {
+        if (attempt == maxAttempts - 1) rethrow;
+        await Future<void>.delayed(
+          Duration(milliseconds: 500 * (attempt + 1)),
+        );
+      }
+    }
+    throw StateError('getDownloadURL failed after $maxAttempts attempts');
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context, String currentUserId) {
@@ -223,12 +361,39 @@ class _MessageBubble extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Flexible(
-                    child: Text(
-                      message.text ?? '',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: isMine ? Colors.white : AppColors.textPrimary,
-                      ),
+                    child: Column(
+                      crossAxisAlignment:
+                          isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (message.image != null) ...[
+                          GestureDetector(
+                            onTap: () {
+                              _showFullScreenImage(context, message.image!);
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: AspectRatio(
+                                aspectRatio: 4 / 3,
+                                child: Image.network(
+                                  message.image!,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if ((message.text ?? '').isNotEmpty)
+                            const SizedBox(height: 8),
+                        ],
+                        if ((message.text ?? '').isNotEmpty)
+                          Text(
+                            message.text ?? '',
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: isMine ? Colors.white : AppColors.textPrimary,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   if (isMine) ...[
@@ -253,6 +418,45 @@ class _MessageBubble extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _showFullScreenImage(BuildContext context, String url) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.9),
+      builder: (ctx) {
+        return GestureDetector(
+          onTap: () => Navigator.of(ctx).pop(),
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            body: SafeArea(
+              child: Stack(
+                children: [
+                  Center(
+                    child: InteractiveViewer(
+                      minScale: 1,
+                      maxScale: 4,
+                      child: Hero(
+                        tag: url,
+                        child: Image.network(url),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

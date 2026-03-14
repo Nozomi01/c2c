@@ -5,6 +5,7 @@ import '../domain/models/service.dart';
 abstract class ServiceRepository {
   Stream<List<Service>> watchRecommended();
   Stream<List<Service>> watchByOwner(String ownerId);
+  Stream<List<Service>> watchByCategory(String category);
   Future<Service> getById(String id);
   Future<String> create(Service service);
 }
@@ -31,6 +32,17 @@ class FirestoreServiceRepository implements ServiceRepository {
   @override
   Stream<List<Service>> watchByOwner(String ownerId) {
     return _col.where('ownerId', isEqualTo: ownerId).snapshots().map(
+          (s) => s.docs.map(Service.fromFirestore).toList(),
+        );
+  }
+
+  @override
+  Stream<List<Service>> watchByCategory(String category) {
+    return _col
+        .where('category', isEqualTo: category)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
           (s) => s.docs.map(Service.fromFirestore).toList(),
         );
   }

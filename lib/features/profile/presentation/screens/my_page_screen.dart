@@ -200,6 +200,12 @@ class MyPageScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             _MenuTile(
+              icon: Icons.verified_user_outlined,
+              label: '本人確認',
+              onTap: () => context.push('/settings/identity'),
+            ),
+            const SizedBox(height: 8),
+            _MenuTile(
               icon: Icons.notifications_outlined,
               label: '通知設定',
               onTap: () => context.push('/settings/notifications'),

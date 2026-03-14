@@ -95,7 +95,7 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {},
+      onTap: () => context.push('/listings'),
       borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -129,7 +129,7 @@ class _NotificationButton extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         IconButton(
-          onPressed: () {},
+          onPressed: () => context.push('/notifications'),
           icon: const Icon(Icons.notifications_outlined, size: 26),
         ),
         Positioned(
@@ -273,12 +273,12 @@ class _CategoryGrid extends StatelessWidget {
   const _CategoryGrid();
 
   static const _categories = [
-    ('💬 トーク・雑談', Color(0xFFFFF9C4)),
-    ('💡 相談・アドバイス', Color(0xFFB3E5FC)),
-    ('☕ カフェ・ご飯', Color(0xFFF8BBD9)),
-    ('🎮 趣味・遊び', Color(0xFFE1BEE7)),
-    ('🚶 お出かけ・同行', Color(0xFFC8E6C9)),
-    ('✨ その他', Color(0xFFFFCCBC)),
+    ('💬 トーク・雑談', 'トーク・雑談', Color(0xFFFFF9C4)),
+    ('💡 相談・アドバイス', '相談・アドバイス', Color(0xFFB3E5FC)),
+    ('☕ カフェ・ご飯', 'カフェ・ご飯', Color(0xFFF8BBD9)),
+    ('🎮 趣味・遊び', '趣味・遊び', Color(0xFFE1BEE7)),
+    ('🚶 お出かけ・同行', 'お出かけ・同行', Color(0xFFC8E6C9)),
+    ('✨ その他', 'その他', Color(0xFFFFCCBC)),
   ];
 
   @override
@@ -293,9 +293,11 @@ class _CategoryGrid extends StatelessWidget {
         crossAxisSpacing: 10,
         childAspectRatio: 1.05,
         children: List.generate(_categories.length, (index) {
-          final (label, color) = _categories[index];
+          final (label, categoryKey, color) = _categories[index];
           return InkWell(
-            onTap: () {},
+            onTap: () {
+              context.push('/listings/category?name=$categoryKey');
+            },
             borderRadius: BorderRadius.circular(10),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),

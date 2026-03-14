@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../domain/models/chat.dart';
 import '../domain/models/message.dart';
@@ -13,6 +14,7 @@ abstract class ChatRepository {
     required String chatId,
     required String senderId,
     required String text,
+    String? imageUrl,
   });
   Future<void> markMessagesAsRead(String chatId, String userId);
 }
@@ -97,31 +99,65 @@ class FirestoreChatRepository implements ChatRepository {
     required String chatId,
     required String senderId,
     required String text,
+    String? imageUrl,
   }) async {
-    final doc = await _messages.add({
+    final data = <String, dynamic>{
       'chatId': chatId,
       'senderId': senderId,
       'text': text,
       'createdAt': FieldValue.serverTimestamp(),
       'isRead': false,
-    });
+    };
+    // Optional image attachment (stored in 'image' field for Message model).
+    // Callers can pass an image URL; when null this key is omitted.
+    if (imageUrl != null) {
+      data['image'] = imageUrl;
+    }
+
+    final doc = await _messages.add(data);
 
     final chatDoc = await _chats.doc(chatId).get();
-    final data = chatDoc.data();
-    final users = List<String>.from(data?['users'] as List<dynamic>? ?? []);
+    final chatData = chatDoc.data();
+    final users = List<String>.from(chatData?['users'] as List<dynamic>? ?? []);
     final recipientId = users.where((u) => u != senderId).firstOrNull;
+    String lastMessage = text;
+    if (lastMessage.isEmpty && imageUrl != null) {
+      lastMessage = '画像が送信されました';
+    }
+
     final updates = <String, dynamic>{
-      'lastMessage': text,
+      'lastMessage': lastMessage,
       'updatedAt': FieldValue.serverTimestamp(),
     };
     if (recipientId != null) {
-      final unread = Map<String, dynamic>.from(data?['unread'] as Map? ?? {});
+      final unread = Map<String, dynamic>.from(chatData?['unread'] as Map? ?? {});
       final current = unread[recipientId];
       final next = (current is int ? current : (current is num ? current.toInt() : 0)) + 1;
       unread[recipientId] = next;
       updates['unread'] = unread;
     }
     await _chats.doc(chatId).update(updates);
+
+    // Send push notification to the recipient via Cloud Function.
+    if (recipientId != null) {
+      try {
+        final functions = FirebaseFunctions.instance;
+        await functions.httpsCallable('sendUserNotification').call({
+          'userId': recipientId,
+          'title': '新しいメッセージが届きました',
+          'body': lastMessage.isNotEmpty ? lastMessage : '新しいメッセージがあります。',
+          'type': 'chat',
+          'extraData': {
+            'chatId': chatId,
+          },
+        });
+      } catch (e) {
+        // Avoid failing the message send if notification fails.
+        // You can log this to your error reporting if needed.
+        // ignore: avoid_print
+        print('sendUserNotification error: $e');
+      }
+    }
 
     return doc.id;
   }

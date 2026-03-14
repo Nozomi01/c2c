@@ -1,17 +1,33 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_line_sdk/flutter_line_sdk.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/config/app_theme.dart';
+import 'core/config/line_config.dart';
 import 'core/router/app_router.dart';
 import 'services/firebase/firebase_initializer.dart';
+
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Ensure Firebase is initialized in background isolates.
+  await FirebaseInitializer.initialize();
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await FirebaseInitializer.initialize();
 
+  if (lineChannelId.isNotEmpty) {
+    await LineSDK.instance.setup(lineChannelId);
+  }
+
+  // Register background message handler for FCM.
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   runApp(const ProviderScope(child: WantyApp()));
 
-  // Defer non-critical init (Realtime DB, Stripe) so first frame paints sooner and reduces frame drops.
+  // Defer non-critical init (Realtime DB, push notifications, Stripe)
+  // so first frame paints sooner and reduces frame drops.
   WidgetsBinding.instance.addPostFrameCallback((_) {
     FirebaseInitializer.deferNonCriticalInit();
   });

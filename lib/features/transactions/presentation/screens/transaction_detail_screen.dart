@@ -38,7 +38,7 @@ class TransactionDetailScreen extends ConsumerWidget {
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.pop(),
+              onPressed: () => _safePop(context),
             ),
             title: const Text('購入'),
           ),
@@ -57,7 +57,7 @@ class TransactionDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => _safePop(context),
         ),
         title: const Text('取引の詳細'),
         backgroundColor: Colors.white,
@@ -75,7 +75,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                 Text('読み込みに失敗しました: $e', textAlign: TextAlign.center),
                 const SizedBox(height: 16),
                 TextButton(
-                  onPressed: () => context.pop(),
+                  onPressed: () => _safePop(context),
                   child: const Text('戻る'),
                 ),
               ],
@@ -135,7 +135,7 @@ class _PurchaseConfirmScreenState extends ConsumerState<_PurchaseConfirmScreen> 
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => context.pop(),
+          onPressed: () => _safePop(context),
         ),
         title: const Text('購入の確認'),
         centerTitle: true,
@@ -696,4 +696,13 @@ class _SellerSection extends StatelessWidget {
     );
   }
 }
+
+void _safePop(BuildContext context) {
+  if (context.canPop()) {
+    context.pop();
+  } else {
+    context.go('/home');
+  }
+}
+
 

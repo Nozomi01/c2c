@@ -18,3 +18,9 @@ final recommendedServicesProvider =
   return repo.watchRecommended();
 });
 
+final servicesByCategoryProvider = StreamProvider.autoDispose
+    .family<List<domain.Service>, String>((ref, category) {
+  final repo = ref.watch(serviceRepositoryProvider);
+  return repo.watchByCategory(category);
+});
+

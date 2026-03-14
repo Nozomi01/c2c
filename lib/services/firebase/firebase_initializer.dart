@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
 import 'package:c2c/firebase_options.dart';
+import 'push_notification_service.dart';
 
 /// Realtime Database URL. Create a database in Firebase Console (Build → Realtime Database),
 /// then copy the URL here (e.g. https://<projectId>-default-rtdb.<region>.firebaseio.com).
@@ -71,6 +72,14 @@ class FirebaseInitializer {
         debugPrint('Realtime Database init error: $e\n$st');
       }
     }
+
+    // FCM push notifications (permission + token + listeners).
+    try {
+      await PushNotificationService.init();
+    } catch (e, st) {
+      debugPrint('Push notification init error: $e\n$st');
+    }
+
     try {
       Stripe.publishableKey = StripeConfig.publishableKey;
       Stripe.merchantIdentifier = 'wanty.app';

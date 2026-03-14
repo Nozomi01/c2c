@@ -23,13 +23,14 @@ class HomeShell extends StatelessWidget {
         onPressed: () => context.push('/create'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        elevation: 4,
+        shape: const CircleBorder(),
+        elevation: 0,
         child: const Icon(Icons.add, size: 28),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
+        // Use a flat BottomAppBar without notch to avoid Scaffold.geometryOf
+        // access during hit testing assertions on some Flutter versions.
         child: SizedBox(
           height: 64,
           child: Row(

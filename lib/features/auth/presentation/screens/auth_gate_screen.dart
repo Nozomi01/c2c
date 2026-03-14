@@ -40,130 +40,244 @@ class _AuthLandingScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final repo = ref.read(authRepositoryProvider);
+    final messenger = ScaffoldMessenger.of(context);
+
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'はじめまして、ウォンティです',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/auth_background.png',
+              fit: BoxFit.cover,
+              // If the background asset is missing, fall back to plain white
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withOpacity(0.96),
+                    Colors.white.withOpacity(0.96),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              '話したい・相談したい人と、\n気軽につながるマーケットプレイス。',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                children: [
+                  const Spacer(flex: 2),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset(
+                        'assets/images/logo.png',
+                        height: 100,
+                      ),
+                      const SizedBox(height: 16),
+                      Image.asset(
+                        'assets/images/logo_text.png',
+                        height: 40,
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  _LandingPrimaryButton(
+                    label: 'Facebookで登録/ログイン',
+                    icon: Icons.facebook,
+                    iconColor: const Color(0xFF1877F3), // Facebook blue
+                    onPressed: () {
+                      // TODO: Facebook login
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Facebookログインは準備中です'),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  if (defaultTargetPlatform == TargetPlatform.iOS)
+                    _LandingPrimaryButton(
+                      label: 'Appleで登録/ログイン',
+                      icon: Icons.apple,
+                      onPressed: () async {
+                        try {
+                          await repo.signInWithApple();
+                        } catch (e) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Appleログインに失敗しました: $e'),
+                            ),
+                          );
+                        }
+                      },
+                    )
+                  else
+                    _LandingPrimaryButton(
+                      label: 'Googleで登録/ログイン',
+                      icon: Icons.g_mobiledata_rounded,
+                      onPressed: () async {
+                        try {
+                          await repo.signInWithGoogle();
+                        } catch (e) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Googleログインに失敗しました: $e'),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _CircleIconButton(
+                        color: const Color(0xFFFDC700),
+                        icon: Icons.phone_iphone,
+                        onTap: () {
+                          context.push('/auth/phone');
+                        },
+                      ),
+                      const SizedBox(width: 24),
+                      _CircleIconButton(
+                        color: const Color(0xFF06C755),
+                        icon: Icons.chat_bubble,
+                        onTap: () async {
+                          try {
+                            await repo.signInWithLine();
+                          } catch (e) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('LINEログインに失敗しました: $e'),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Opacity(
+                    opacity: 0.7,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(
+                          Icons.check_box_outline_blank,
+                          size: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                        SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            '次に進むと、利用規約とプライバシーポリシーに同意することになります。',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppColors.textSecondary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                ],
               ),
             ),
-            const SizedBox(height: 32),
-            _AuthButton(
-              icon: Icons.phone_iphone,
-              label: '電話番号で始める',
-              onPressed: () {
-                context.push('/auth/phone');
-              },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LandingPrimaryButton extends StatelessWidget {
+  const _LandingPrimaryButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.iconColor,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final Color? iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, color: iconColor ?? Colors.black87),
+        label: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.black87,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 12),
-            const _PlatformSocialButton(),
-            const SizedBox(height: 12),
-            _AuthButton(
-              icon: Icons.chat,
-              label: 'LINEで続ける',
-              onPressed: () {
-                // TODO: LINE login
-              },
-            ),
-            const SizedBox(height: 12),
-            _AuthButton(
-              icon: Icons.facebook,
-              label: 'Facebookで続ける',
-              onPressed: () {
-                // TODO: Facebook login
-              },
-            ),
-          ],
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(32),
+          ),
         ),
       ),
     );
   }
 }
 
-/// On iOS shows Apple sign-in, on Android shows Google sign-in.
-class _PlatformSocialButton extends ConsumerWidget {
-  const _PlatformSocialButton();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
-    final repo = ref.read(authRepositoryProvider);
-    final messenger = ScaffoldMessenger.of(context);
-
-    if (isIOS) {
-      return _AuthButton(
-        icon: Icons.apple,
-        label: 'Appleで続ける',
-        onPressed: () async {
-          try {
-            await repo.signInWithApple();
-          } catch (e) {
-            messenger.showSnackBar(
-              SnackBar(content: Text('Appleログインに失敗しました: $e')),
-            );
-          }
-        },
-      );
-    }
-
-    return _AuthButton(
-      icon: Icons.g_mobiledata_rounded,
-      label: 'Googleで続ける',
-      onPressed: () async {
-        try {
-          await repo.signInWithGoogle();
-        } catch (e) {
-          messenger.showSnackBar(
-            SnackBar(content: Text('Googleログインに失敗しました: $e')),
-          );
-        }
-      },
-    );
-  }
-}
-
-class _AuthButton extends StatelessWidget {
-  const _AuthButton({
+class _CircleIconButton extends StatelessWidget {
+  const _CircleIconButton({
+    required this.color,
     required this.icon,
-    required this.label,
-    required this.onPressed,
+    required this.onTap,
   });
 
+  final Color color;
   final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        icon: Icon(icon),
-        label: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Text(label),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(28),
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
+        child: Icon(
+          icon,
+          color: Colors.white,
         ),
-        onPressed: onPressed,
       ),
     );
   }
