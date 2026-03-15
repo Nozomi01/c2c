@@ -176,6 +176,10 @@ class _PurchaseConfirmScreenState extends ConsumerState<_PurchaseConfirmScreen> 
                               child: CachedNetworkImage(
                                 imageUrl: s.images.first,
                                 fit: BoxFit.cover,
+                                errorWidget: (_, __, ___) => Container(
+                                  color: AppColors.primarySoft,
+                                  child: const Icon(Icons.broken_image_outlined, color: AppColors.primary),
+                                ),
                               ),
                             ),
                           ),
@@ -433,6 +437,7 @@ class _TransactionDetailContent extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('受取完了しました。評価をお願いします。')),
         );
+        context.push('/transactions/${transaction.id}/completed');
       }
     } catch (e) {
       if (context.mounted) {
@@ -592,7 +597,14 @@ class _PurchasedItemCard extends StatelessWidget {
                       color: AppColors.primarySoft,
                       child: const Icon(Icons.image, color: AppColors.primary),
                     )
-                  : CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover),
+                  : CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Container(
+                        color: AppColors.primarySoft,
+                        child: const Icon(Icons.broken_image_outlined, color: AppColors.primary),
+                      ),
+                    ),
             ),
           ),
           const SizedBox(width: 12),

@@ -25,10 +25,13 @@ import '../../features/profile/presentation/screens/notification_settings_screen
 import '../../features/profile/presentation/screens/profile_edit_screen.dart';
 import '../../features/profile/presentation/screens/withdraw_screen.dart';
 import '../../features/profile/presentation/screens/identity_verify_screen.dart';
+import '../../features/profile/presentation/screens/stripe_account_screen.dart';
 import '../../features/notifications/presentation/screens/notification_list_screen.dart';
 import '../../features/transactions/presentation/screens/transaction_detail_screen.dart';
 import '../../features/transactions/presentation/screens/payment_method_screen.dart';
 import '../../features/transactions/presentation/screens/purchase_complete_screen.dart';
+import '../../features/transactions/presentation/screens/transaction_completed_screen.dart';
+import '../../features/transactions/presentation/screens/rate_transaction_screen.dart';
 import '../../features/services/domain/models/service.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -87,7 +90,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/listings',
                 name: 'listings',
-                builder: (context, state) => const ServiceListScreen(),
+                builder: (context, state) => ServiceListScreen(
+                  initialQuery: state.uri.queryParameters['q'],
+                ),
               ),
               GoRoute(
                 path: '/listings/category',
@@ -142,6 +147,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'payment',
             name: 'paymentMethod',
             builder: (context, state) => PaymentMethodScreen(
+              transactionId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: 'completed',
+            name: 'transactionCompleted',
+            builder: (context, state) => TransactionCompletedScreen(
+              transactionId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: 'rate',
+            name: 'rateTransaction',
+            builder: (context, state) => RateTransactionScreen(
               transactionId: state.pathParameters['id']!,
             ),
           ),
@@ -224,6 +243,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/settings/identity',
         name: 'identityVerify',
         builder: (context, state) => const IdentityVerifyScreen(),
+      ),
+      GoRoute(
+        path: '/mypage/stripe',
+        name: 'stripeAccount',
+        builder: (context, state) => const StripeAccountScreen(),
       ),
     ],
   );

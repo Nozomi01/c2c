@@ -218,7 +218,14 @@ class _ProductCard extends StatelessWidget {
                       color: AppColors.primarySoft,
                       child: const Icon(Icons.image, color: AppColors.primary),
                     )
-                  : CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover),
+                  : CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Container(
+                        color: AppColors.primarySoft,
+                        child: const Icon(Icons.broken_image_outlined, color: AppColors.primary),
+                      ),
+                    ),
             ),
           ),
           const SizedBox(width: 12),

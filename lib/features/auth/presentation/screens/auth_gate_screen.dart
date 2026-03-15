@@ -110,6 +110,7 @@ class _AuthLandingScreen extends ConsumerWidget {
                       onPressed: () async {
                         try {
                           await repo.signInWithApple();
+                          if (context.mounted) context.go('/home');
                         } catch (e) {
                           messenger.showSnackBar(
                             SnackBar(
@@ -126,6 +127,7 @@ class _AuthLandingScreen extends ConsumerWidget {
                       onPressed: () async {
                         try {
                           await repo.signInWithGoogle();
+                          if (context.mounted) context.go('/home');
                         } catch (e) {
                           messenger.showSnackBar(
                             SnackBar(
@@ -153,6 +155,7 @@ class _AuthLandingScreen extends ConsumerWidget {
                         onTap: () async {
                           try {
                             await repo.signInWithLine();
+                            if (context.mounted) context.go('/home');
                           } catch (e) {
                             messenger.showSnackBar(
                               SnackBar(

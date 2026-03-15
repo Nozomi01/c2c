@@ -19,53 +19,90 @@ class HomeShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: navigationShell,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/create'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        shape: const CircleBorder(),
-        elevation: 0,
-        child: const Icon(Icons.add, size: 28),
+      floatingActionButton: Transform.translate(
+        offset: const Offset(0, 15),
+        child: FloatingActionButton(
+          onPressed: () => context.push('/create'),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: const CircleBorder(),
+          elevation: 0,
+          child: const Icon(Icons.add, size: 28),
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        // Use a flat BottomAppBar without notch to avoid Scaffold.geometryOf
-        // access during hit testing assertions on some Flutter versions.
-        child: SizedBox(
-          height: 64,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                icon: Icons.home_outlined,
-                activeIcon: Icons.home,
-                label: 'ホーム',
-                isSelected: navigationShell.currentIndex == 0,
-                onTap: () => _onItemTapped(context, 0),
-              ),
-              _NavItem(
-                icon: Icons.list_alt_outlined,
-                activeIcon: Icons.list_alt,
-                label: '掲示板',
-                isSelected: navigationShell.currentIndex == 1,
-                onTap: () => _onItemTapped(context, 1),
-              ),
-              const SizedBox(width: 56),
-              _NavItem(
-                icon: Icons.chat_bubble_outline,
-                activeIcon: Icons.chat_bubble,
-                label: 'メッセージ',
-                isSelected: navigationShell.currentIndex == 2,
-                onTap: () => _onItemTapped(context, 2),
-              ),
-              _NavItem(
-                icon: Icons.person_outline,
-                activeIcon: Icons.person,
-                label: 'マイページ',
-                isSelected: navigationShell.currentIndex == 3,
-                onTap: () => _onItemTapped(context, 3),
+      bottomNavigationBar: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 8,
+                offset: Offset(0, -2),
               ),
             ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              height: 64,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _NavItem(
+                            icon: Icons.home_outlined,
+                            activeIcon: Icons.home,
+                            label: 'ホーム',
+                            isSelected: navigationShell.currentIndex == 0,
+                            onTap: () => _onItemTapped(context, 0),
+                          ),
+                        ),
+                        Expanded(
+                          child: _NavItem(
+                            icon: Icons.list_alt_outlined,
+                            activeIcon: Icons.list_alt,
+                            label: '掲示板',
+                            isSelected: navigationShell.currentIndex == 1,
+                            onTap: () => _onItemTapped(context, 1),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 56),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _NavItem(
+                            icon: Icons.chat_bubble_outline,
+                            activeIcon: Icons.chat_bubble,
+                            label: 'メッセージ',
+                            isSelected: navigationShell.currentIndex == 2,
+                            onTap: () => _onItemTapped(context, 2),
+                          ),
+                        ),
+                        Expanded(
+                          child: _NavItem(
+                            icon: Icons.person_outline,
+                            activeIcon: Icons.person,
+                            label: 'マイページ',
+                            isSelected: navigationShell.currentIndex == 3,
+                            onTap: () => _onItemTapped(context, 3),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -93,7 +130,7 @@ class _NavItem extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -101,14 +138,22 @@ class _NavItem extends StatelessWidget {
             Icon(
               isSelected ? activeIcon : icon,
               size: 24,
-              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              color: isSelected
+                  ? AppColors.textPrimary
+                  : AppColors.textSecondary,
             ),
             const SizedBox(height: 2),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                color: isSelected
+                    ? AppColors.textPrimary
+                    : AppColors.textSecondary,
               ),
             ),
           ],

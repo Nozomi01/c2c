@@ -23,3 +23,9 @@ final notificationsProvider =
       .map((snap) => snap.docs.map(AppNotification.fromDoc).toList());
 });
 
+/// Unread notification count for badge (e.g. home app bar).
+final unreadNotificationCountProvider = Provider<int>((ref) {
+  final list = ref.watch(notificationsProvider).valueOrNull ?? const [];
+  return list.where((n) => !n.read).length;
+});
+

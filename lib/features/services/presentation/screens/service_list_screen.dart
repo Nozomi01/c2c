@@ -7,7 +7,9 @@ import '../../../../widgets/shimmer_list.dart';
 import '../../../../core/config/app_theme.dart';
 
 class ServiceListScreen extends ConsumerStatefulWidget {
-  const ServiceListScreen({super.key});
+  const ServiceListScreen({super.key, this.initialQuery});
+
+  final String? initialQuery;
 
   @override
   ConsumerState<ServiceListScreen> createState() => _ServiceListScreenState();
@@ -16,6 +18,16 @@ class ServiceListScreen extends ConsumerStatefulWidget {
 class _ServiceListScreenState extends ConsumerState<ServiceListScreen> {
   final _searchController = TextEditingController();
   String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    final q = widget.initialQuery?.trim() ?? '';
+    if (q.isNotEmpty) {
+      _searchController.text = q;
+      _query = q;
+    }
+  }
 
   @override
   void dispose() {
@@ -66,13 +78,14 @@ class _ServiceListScreenState extends ConsumerState<ServiceListScreen> {
             ),
             servicesAsync.when(
               data: (services) {
-                final filtered = _query.isEmpty
+                final q = _query.toLowerCase();
+                final filtered = q.isEmpty
                     ? services
                     : services
                         .where((s) =>
-                            s.title.contains(_query) ||
-                            s.description.contains(_query) ||
-                            s.category.contains(_query))
+                            s.title.toLowerCase().contains(q) ||
+                            s.description.toLowerCase().contains(q) ||
+                            s.category.toLowerCase().contains(q))
                         .toList();
 
                 if (filtered.isEmpty) {

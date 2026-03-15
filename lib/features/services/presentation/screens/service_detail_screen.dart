@@ -167,6 +167,10 @@ class _ImageHeader extends StatelessWidget {
                   itemBuilder: (context, index) => CachedNetworkImage(
                     imageUrl: images[index],
                     fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => Container(
+                      color: AppColors.primarySoft,
+                      child: const Icon(Icons.broken_image_outlined, color: AppColors.primary, size: 48),
+                    ),
                   ),
                 ),
         ),

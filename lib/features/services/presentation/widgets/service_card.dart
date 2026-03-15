@@ -106,6 +106,10 @@ class _ImageThumbnail extends StatelessWidget {
             : CachedNetworkImage(
                 imageUrl: url!,
                 fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => Container(
+                  color: AppColors.primarySoft,
+                  child: const Icon(Icons.broken_image_outlined, color: AppColors.primary),
+                ),
               ),
       ),
     );

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../notifications/presentation/providers/notification_providers.dart';
 import '../../../services/domain/models/service.dart';
 import '../../../services/presentation/providers/service_list_provider.dart';
 
@@ -24,9 +25,7 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: _SearchBar(),
-                    ),
+                    Expanded(child: _SearchBar()),
                     const SizedBox(width: 8),
                     _NotificationButton(),
                   ],
@@ -37,19 +36,13 @@ class HomeScreen extends ConsumerWidget {
             const SliverToBoxAdapter(child: _PromoBanner()),
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
             SliverToBoxAdapter(
-              child: _SectionHeader(
-                title: '新着ユーザーから探す',
-                onTap: () {},
-              ),
+              child: _SectionHeader(title: '新着ユーザーから探す', onTap: () {}),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
             const SliverToBoxAdapter(child: _NewUsersRow()),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
             SliverToBoxAdapter(
-              child: _SectionHeader(
-                title: 'カテゴリから探す',
-                onTap: () {},
-              ),
+              child: _SectionHeader(title: 'カテゴリから探す', onTap: () {}),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
             const SliverToBoxAdapter(child: _CategoryGrid()),
@@ -78,8 +71,14 @@ class HomeScreen extends ConsumerWidget {
                       );
                     },
                   ),
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('読み込みに失敗しました', style: TextStyle(color: AppColors.textSecondary))),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(
+                    child: Text(
+                      '読み込みに失敗しました',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -91,40 +90,71 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _SearchBar extends StatelessWidget {
+class _SearchBar extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_SearchBar> createState() => _SearchBarState();
+}
+
+class _SearchBarState extends ConsumerState<_SearchBar> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _goToSearch() {
+    final query = _controller.text.trim();
+    final uri = query.isEmpty
+        ? '/listings'
+        : '/listings?q=${Uri.encodeComponent(query)}';
+    context.push(uri);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => context.push('/listings'),
+    return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: AppColors.border.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Row(
-          children: [
-            Icon(Icons.search, size: 22, color: AppColors.textSecondary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                '年齢、身長検索が可能になりました',
-                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
+        child: TextField(
+          controller: _controller,
+          onSubmitted: (_) => _goToSearch(),
+          decoration: InputDecoration(
+            hintText: 'サービスを検索',
+            hintStyle: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+            prefixIcon: Icon(
+              Icons.search,
+              size: 22,
+              color: AppColors.textSecondary,
             ),
-          ],
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
+            isDense: true,
+          ),
+          style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+          textInputAction: TextInputAction.search,
         ),
       ),
     );
   }
 }
 
-class _NotificationButton extends StatelessWidget {
+class _NotificationButton extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCount = ref.watch(unreadNotificationCountProvider);
+    final showBadge = unreadCount > 0;
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -132,18 +162,32 @@ class _NotificationButton extends StatelessWidget {
           onPressed: () => context.push('/notifications'),
           icon: const Icon(Icons.notifications_outlined, size: 26),
         ),
-        Positioned(
-          right: 8,
-          top: 8,
-          child: Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-              shape: BoxShape.circle,
+        if (showBadge)
+          Positioned(
+            right: 6,
+            top: 6,
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: unreadCount > 99 ? 4 : (unreadCount > 9 ? 4 : 5),
+                vertical: 2,
+              ),
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.rectangle,
+                borderRadius: BorderRadius.all(Radius.circular(9)),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                unreadCount > 99 ? '99+' : '$unreadCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -211,7 +255,11 @@ class _SectionHeader extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondary),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 14,
+                color: AppColors.textSecondary,
+              ),
             ],
           ),
         ),
@@ -245,9 +293,16 @@ class _NewUsersRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: const Color(0xFFE3F2FD),
-                    border: Border.all(color: const Color(0xFFBBDEFB), width: 2),
+                    border: Border.all(
+                      color: const Color(0xFFBBDEFB),
+                      width: 2,
+                    ),
                   ),
-                  child: const Icon(Icons.person, size: 28, color: Color(0xFF64B5F6)),
+                  child: const Icon(
+                    Icons.person,
+                    size: 28,
+                    color: Color(0xFF64B5F6),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 SizedBox(
@@ -257,7 +312,10 @@ class _NewUsersRow extends StatelessWidget {
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
               ],
@@ -278,7 +336,7 @@ class _CategoryGrid extends StatelessWidget {
     ('☕ カフェ・ご飯', 'カフェ・ご飯', Color(0xFFF8BBD9)),
     ('🎮 趣味・遊び', '趣味・遊び', Color(0xFFE1BEE7)),
     ('🚶 お出かけ・同行', 'お出かけ・同行', Color(0xFFC8E6C9)),
-    ('✨ その他', 'その他', Color(0xFFFFCCBC)),
+    ('🌟 その他', 'その他', Color(0xFFFFCCBC)),
   ];
 
   @override
@@ -288,10 +346,10 @@ class _CategoryGrid extends StatelessWidget {
       child: GridView.count(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 3,
+        crossAxisCount: 2,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: 1.05,
+        childAspectRatio: 1.7,
         children: List.generate(_categories.length, (index) {
           final (label, categoryKey, color) = _categories[index];
           return InkWell(
@@ -351,11 +409,19 @@ class _NewListingCard extends StatelessWidget {
                 child: imageUrl == null
                     ? Container(
                         color: AppColors.primarySoft,
-                        child: const Icon(Icons.image, color: AppColors.primary, size: 40),
+                        child: const Icon(
+                          Icons.image,
+                          color: AppColors.primary,
+                          size: 40,
+                        ),
                       )
                     : CachedNetworkImage(
                         imageUrl: imageUrl,
                         fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => Container(
+                          color: AppColors.primarySoft,
+                          child: const Icon(Icons.broken_image_outlined, color: AppColors.primary, size: 40),
+                        ),
                       ),
               ),
             ),
@@ -373,10 +439,7 @@ class _NewListingCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '¥${service.price} / 時間',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
           ],
         ),

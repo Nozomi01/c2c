@@ -12,6 +12,7 @@ abstract class TransactionRepository {
     required int price,
   });
   Future<void> updateStatus(String id, TransactionStatus status);
+  Future<void> setReview(String id, int rating, {String? comment});
 }
 
 class FirestoreTransactionRepository implements TransactionRepository {
@@ -59,6 +60,15 @@ class FirestoreTransactionRepository implements TransactionRepository {
   @override
   Future<void> updateStatus(String id, TransactionStatus status) async {
     await _col.doc(id).update({'status': status.name});
+  }
+
+  @override
+  Future<void> setReview(String id, int rating, {String? comment}) async {
+    await _col.doc(id).update({
+      'status': TransactionStatus.reviewed.name,
+      'rating': rating,
+      'reviewComment': comment ?? '',
+    });
   }
 }
 

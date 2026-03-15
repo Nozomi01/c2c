@@ -1,8 +1,26 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+
+Widget _avatarPlaceholder(String displayName, double size) {
+  return Container(
+    width: size,
+    height: size,
+    color: AppColors.primarySoft,
+    alignment: Alignment.center,
+    child: Text(
+      displayName.isNotEmpty ? displayName[0] : '?',
+      style: TextStyle(
+        fontSize: size * 0.375,
+        color: AppColors.primary,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
+}
 
 class MyPageScreen extends StatelessWidget {
   const MyPageScreen({super.key});
@@ -46,20 +64,20 @@ class MyPageScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 32,
-                      backgroundColor: AppColors.primarySoft,
-                      backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-                      child: photoUrl == null
-                          ? Text(
-                              displayName.isNotEmpty ? displayName[0] : '?',
-                              style: const TextStyle(
-                                fontSize: 24,
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
+                    ClipOval(
+                      child: photoUrl != null && photoUrl.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: photoUrl,
+                              width: 64,
+                              height: 64,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => _avatarPlaceholder(displayName, 64),
                             )
-                          : null,
+                          : SizedBox(
+                              width: 64,
+                              height: 64,
+                              child: _avatarPlaceholder(displayName, 64),
+                            ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -209,6 +227,12 @@ class MyPageScreen extends StatelessWidget {
               icon: Icons.notifications_outlined,
               label: '通知設定',
               onTap: () => context.push('/settings/notifications'),
+            ),
+            const SizedBox(height: 8),
+            _MenuTile(
+              icon: Icons.account_balance_wallet_outlined,
+              label: 'Stripeアカウント連携',
+              onTap: () => context.push('/mypage/stripe'),
             ),
             const SizedBox(height: 8),
             _MenuTile(

@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_line_sdk/flutter_line_sdk.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -110,7 +113,34 @@ class FirebaseAuthRepository implements AuthRepository {
       accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
     );
-    return _auth.signInWithCredential(credential);
+    final cred = await _auth.signInWithCredential(credential);
+    await _saveGoogleProfileToFirestore(cred.user, googleUser);
+    return cred;
+  }
+
+  /// Persist Google account profile (displayName, email, photoURL) to Firestore.
+  Future<void> _saveGoogleProfileToFirestore(
+    User? firebaseUser,
+    GoogleSignInAccount googleUser,
+  ) async {
+    if (firebaseUser == null) return;
+    try {
+      final displayName = firebaseUser.displayName ?? googleUser.displayName;
+      final email = firebaseUser.email ?? googleUser.email;
+      final photoURL = firebaseUser.photoURL ?? googleUser.photoUrl?.toString();
+      final data = <String, dynamic>{
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (displayName != null && displayName.isNotEmpty) data['displayName'] = displayName;
+      if (email.isNotEmpty) data['email'] = email;
+      if (photoURL != null && photoURL.isNotEmpty) data['photoURL'] = photoURL;
+      await FirebaseFirestore.instance.collection('users').doc(firebaseUser.uid).set(
+            data,
+            SetOptions(merge: true),
+          );
+    } catch (_) {
+      // Non-fatal: Auth user already has profile; Firestore may be updated by onAuthUserCreate
+    }
   }
 
   @override
@@ -123,16 +153,98 @@ class FirebaseAuthRepository implements AuthRepository {
         message: 'LINE login did not return an access token',
       );
     }
-    final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
-    final response = await functions.httpsCallable('createLineCustomToken').call({'accessToken': accessToken});
-    final customToken = response.data['customToken'] as String?;
-    if (customToken == null || customToken.isEmpty) {
-      throw FirebaseAuthException(
-        code: 'line_custom_token_failed',
-        message: 'Failed to get Firebase token from LINE',
-      );
+    // Prefer HTTP endpoint so LINE login works when App Check fails (e.g. Android emulator).
+    String? customToken;
+    String? serverError;
+    try {
+      customToken = await _getLineCustomTokenHttp(accessToken);
+    } on FirebaseAuthException {
+      rethrow;
+    } catch (e) {
+      serverError = e is Exception ? e.toString().replaceFirst('Exception: ', '') : null;
     }
-    return _auth.signInWithCustomToken(customToken);
+    if (customToken != null && customToken.isNotEmpty) {
+      final cred = await _auth.signInWithCustomToken(customToken);
+      await _applyLineProfileFromFirestore();
+      return cred;
+    }
+    customToken = await _getLineCustomTokenCallable(accessToken);
+    if (customToken != null && customToken.isNotEmpty) {
+      final cred = await _auth.signInWithCustomToken(customToken);
+      await _applyLineProfileFromFirestore();
+      return cred;
+    }
+    throw FirebaseAuthException(
+      code: 'line_custom_token_failed',
+      message: serverError ?? 'Failed to get Firebase token from LINE. Check Firebase Console → Functions logs for lineCustomTokenHttp.',
+    );
+  }
+
+  /// LINE custom token via HTTP (no App Check). Works on emulator when attestation fails.
+  /// Throws [Exception] with server error message when status is not 200.
+  Future<String?> _getLineCustomTokenHttp(String accessToken) async {
+    final projectId = Firebase.app().options.projectId;
+    final url = Uri.parse(
+      'https://asia-northeast1-$projectId.cloudfunctions.net/lineCustomTokenHttp',
+    );
+    final client = HttpClient();
+    try {
+      final request = await client.postUrl(url);
+      request.headers.set('Content-Type', 'application/json');
+      request.write(jsonEncode({'accessToken': accessToken}));
+      final response = await request.close();
+      final body = await response.transform(utf8.decoder).join();
+      if (response.statusCode == 200) {
+        final data = jsonDecode(body) as Map<String, dynamic>?;
+        return data?['customToken'] as String?;
+      }
+      String serverError = 'HTTP ${response.statusCode}';
+      try {
+        final data = jsonDecode(body) as Map<String, dynamic>?;
+        final err = data?['error'];
+        if (err is String && err.isNotEmpty) serverError = err;
+      } catch (_) {}
+      throw Exception(serverError);
+    } finally {
+      client.close();
+    }
+  }
+
+  /// After LINE sign-in, sync displayName/photoURL from Firestore (filled by Cloud Function from LINE profile).
+  Future<void> _applyLineProfileFromFirestore() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final data = doc.data();
+      if (data == null) return;
+      final displayName = data['displayName'] as String?;
+      final photoURL = data['photoURL'] as String?;
+      if (displayName != null && displayName.isNotEmpty && user.displayName != displayName) {
+        await user.updateDisplayName(displayName);
+      }
+      if (photoURL != null && photoURL.isNotEmpty && user.photoURL != photoURL) {
+        await user.updatePhotoURL(photoURL);
+      }
+    } catch (_) {
+      // Non-fatal: profile will still show from Firestore in UI
+    }
+  }
+
+  /// LINE custom token via callable (requires App Check).
+  Future<String?> _getLineCustomTokenCallable(String accessToken) async {
+    try {
+      final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
+      final response = await functions
+          .httpsCallable('createLineCustomToken')
+          .call({'accessToken': accessToken});
+      return response.data['customToken'] as String?;
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

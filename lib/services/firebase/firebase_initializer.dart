@@ -17,6 +17,9 @@ const String? _realtimeDatabaseUrl = 'https://wanty-d606b-default-rtdb.asia-sout
 class FirebaseInitializer {
   static FirebaseDatabase? _database;
 
+  /// Only activate App Check once per process to avoid "Too many attempts" on hot restart.
+  static bool _appCheckActivated = false;
+
   /// Firebase Realtime Database instance, or null if not configured. Call after [initialize].
   static FirebaseDatabase? get database => _database;
 
@@ -30,15 +33,19 @@ class FirebaseInitializer {
         options: DefaultFirebaseOptions.currentPlatform,
       );
 
-      // App Check: use debug provider in debug mode to satisfy token and reduce console warnings.
-      // On first run, register the printed debug token in Firebase Console → App Check → Manage debug tokens.
-      if (kDebugMode) {
+      // App Check: use debug provider with your registered token so attestation succeeds.
+      // Register this token in Firebase Console → App Check → Android app → Manage debug tokens.
+      if (kDebugMode && !_appCheckActivated) {
         try {
           await FirebaseAppCheck.instance.activate(
-            androidProvider: AndroidProvider.debug,
-            appleProvider: AppleProvider.debug,
+            providerAndroid: const AndroidDebugProvider(
+              debugToken: 'AD436B54-9A3B-490D-AD1C-A91621B30AB8',
+            ),
+            providerApple: const AppleDebugProvider(),
           );
+          _appCheckActivated = true;
         } catch (e, st) {
+          _appCheckActivated = true; // Don't retry to avoid rate limit
           debugPrint('App Check activate error (non-fatal): $e\n$st');
         }
       }

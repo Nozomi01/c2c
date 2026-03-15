@@ -21,7 +21,8 @@ Future<void> main() async {
     await LineSDK.instance.setup(lineChannelId);
   }
 
-  // Register background message handler for FCM.
+  // Register background message handler for FCM (once per app start).
+  // Note: Hot restart re-runs this and can log "Attempted to start a duplicate background isolate" — use full restart to clear.
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   runApp(const ProviderScope(child: WantyApp()));
