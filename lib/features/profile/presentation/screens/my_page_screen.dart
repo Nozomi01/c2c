@@ -1,9 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../services/domain/models/service.dart';
+import '../../../services/presentation/providers/service_list_provider.dart';
 
 Widget _avatarPlaceholder(String displayName, double size) {
   return Container(
@@ -22,14 +27,15 @@ Widget _avatarPlaceholder(String displayName, double size) {
   );
 }
 
-class MyPageScreen extends StatelessWidget {
+class MyPageScreen extends ConsumerWidget {
   const MyPageScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final user = FirebaseAuth.instance.currentUser;
     final displayName = user?.displayName ?? user?.email?.split('@').first ?? 'ゲスト';
     final photoUrl = user?.photoURL;
+    final uid = user?.uid;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -139,41 +145,59 @@ class MyPageScreen extends StatelessWidget {
             const SizedBox(height: 24),
 
             // 残高
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
+            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: uid == null
+                  ? const Stream.empty()
+                  : FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+              builder: (context, snapshot) {
+                int balance = 0;
+                if (snapshot.hasData && snapshot.data!.data() != null) {
+                  final data = snapshot.data!.data()!;
+                  final raw = data['walletBalance'];
+                  if (raw is num) {
+                    balance = raw.toInt();
+                  }
+                }
+
+                final formatted = '¥${NumberFormat('#,###').format(balance)}';
+
+                return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '残高',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textPrimary,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '残高',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          formatted,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      '¥6,000',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                    const Spacer(),
+                    OutlinedButton(
+                      onPressed: uid == null ? null : () => context.push('/mypage/withdraw'),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.border),
+                        foregroundColor: AppColors.textPrimary,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
+                      child: const Text('売上を出金'),
                     ),
                   ],
-                ),
-                const Spacer(),
-                OutlinedButton(
-                  onPressed: () => context.push('/mypage/withdraw'),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.border),
-                    foregroundColor: AppColors.textPrimary,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  child: const Text('売上を出金'),
-                ),
-              ],
+                );
+              },
             ),
             const SizedBox(height: 24),
 
@@ -190,11 +214,19 @@ class MyPageScreen extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _StatCard(
-                    icon: Icons.add_box_outlined,
-                    label: '出品中',
-                    count: 0,
-                    onTap: () => context.push('/mypage/listings'),
+                  child: StreamBuilder<List<Service>>(
+                    stream: uid == null
+                        ? const Stream.empty()
+                        : ref.watch(serviceRepositoryProvider).watchByOwner(uid),
+                    builder: (context, snapshot) {
+                      final count = (snapshot.data ?? []).length;
+                      return _StatCard(
+                        icon: Icons.add_box_outlined,
+                        label: '出品中',
+                        count: count,
+                        onTap: () => context.push('/mypage/listings'),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -215,6 +247,18 @@ class MyPageScreen extends StatelessWidget {
               icon: Icons.settings,
               label: 'アカウント設定',
               onTap: () => context.push('/settings/account'),
+            ),
+            const SizedBox(height: 8),
+            _MenuTile(
+              icon: Icons.assignment_outlined,
+              label: '依頼したサービス',
+              onTap: () => context.push('/mypage/requests'),
+            ),
+            const SizedBox(height: 8),
+            _MenuTile(
+              icon: Icons.assignment_ind_outlined,
+              label: '受けている依頼',
+              onTap: () => context.push('/seller/requests'),
             ),
             const SizedBox(height: 8),
             _MenuTile(

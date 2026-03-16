@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -104,15 +105,29 @@ class _PurchaseConfirmScreenState extends ConsumerState<_PurchaseConfirmScreen> 
     if (_submitting) return;
     setState(() => _submitting = true);
     try {
-      final repo = ref.read(transactionRepositoryProvider);
-      final txId = await repo.createPending(
-        serviceId: widget.service.id,
-        buyerId: widget.userId,
-        sellerId: widget.service.ownerId,
-        price: widget.service.price,
-      );
+      final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
+      final result = await functions.httpsCallable('createEscrowPaymentIntent').call({
+        'amount': widget.service.price,
+        'currency': 'jpy',
+        'serviceId': widget.service.id,
+        'sellerId': widget.service.ownerId,
+      });
+      final data = result.data as Map<String, dynamic>?;
+      final txId = data?['transactionId'] as String?;
+      final clientSecret = data?['clientSecret'] as String?;
       if (!mounted) return;
-      context.go('/transactions/$txId/payment');
+      if (txId == null || txId.isEmpty || clientSecret == null || clientSecret.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('支払いの準備に失敗しました。もう一度お試しください。')),
+        );
+        return;
+      }
+      context.go('/transactions/$txId/payment', extra: clientSecret);
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('取引の作成に失敗しました: ${e.message ?? e.code}')),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -233,7 +248,7 @@ class _PurchaseConfirmScreenState extends ConsumerState<_PurchaseConfirmScreen> 
                   const SizedBox(height: 8),
                   Text(
                     '「購入を確定する」をタップすると取引が作成され、出品者に通知されます。'
-                    '支払い方法の選択は次の画面で行えます。（決済連携は準備中です）',
+                    '次の画面でクレジットカード決済を行い、売上金はエスクローで安全に保管されます。',
                     style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.5),
                   ),
                 ],
@@ -307,6 +322,8 @@ class _TransactionDetailContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final serviceAsync = ref.watch(serviceDetailProvider(transaction.serviceId));
     final tabIndex = _tabIndexForStatus(transaction.status);
+    final isBuyer = userId == transaction.buyerId;
+    final isSeller = userId == transaction.sellerId;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -347,7 +364,8 @@ class _TransactionDetailContent extends ConsumerWidget {
               ),
             ),
           ),
-          if (transaction.status == TransactionStatus.pending) ...[
+          // 支払い待ち: 購入者のみ決済へ進める
+          if (transaction.status == TransactionStatus.pending && isBuyer) ...[
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -365,8 +383,30 @@ class _TransactionDetailContent extends ConsumerWidget {
               ),
             ),
           ],
-          if (transaction.status == TransactionStatus.inProgress ||
-              transaction.status == TransactionStatus.paid) ...[
+          // 支払い済み〜提供中のアクション
+          if (transaction.status == TransactionStatus.paid && isSeller) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  await ref
+                      .read(transactionRepositoryProvider)
+                      .updateStatus(transaction.id, TransactionStatus.inProgress);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text('サービスを提供しました'),
+              ),
+            ),
+          ],
+          if (transaction.status == TransactionStatus.inProgress && isBuyer) ...[
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -381,6 +421,21 @@ class _TransactionDetailContent extends ConsumerWidget {
                   ),
                 ),
                 child: const Text('サービスを受け取りました'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => context.push('/transactions/${transaction.id}/issues'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: const BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text('修正依頼・問題を報告する'),
               ),
             ),
             const SizedBox(height: 16),
@@ -432,19 +487,27 @@ class _TransactionDetailContent extends ConsumerWidget {
 
   Future<void> _confirmReceipt(BuildContext context, WidgetRef ref) async {
     try {
-      await ref.read(transactionRepositoryProvider).updateStatus(transaction.id, TransactionStatus.completed);
+      final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
+      await functions.httpsCallable('releaseEscrow').call({
+        'transactionId': transaction.id,
+      });
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('受取完了しました。評価をお願いします。')),
         );
         context.push('/transactions/${transaction.id}/completed');
       }
+    } on FirebaseFunctionsException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('支払いの確定に失敗しました: ${e.message ?? e.code}')),
+      );
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('エラー: $e')),
-        );
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('エラー: $e')),
+      );
     }
   }
 }

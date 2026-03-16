@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
@@ -11,16 +12,22 @@ import '../../domain/models/transaction.dart';
 import '../providers/transaction_providers.dart';
 
 class PaymentMethodScreen extends ConsumerStatefulWidget {
-  const PaymentMethodScreen({super.key, required this.transactionId});
+  const PaymentMethodScreen({
+    super.key,
+    required this.transactionId,
+    this.clientSecret,
+  });
 
   final String transactionId;
+  /// Stripe PaymentIntent client secret from createEscrowPaymentIntent (passed when navigating from purchase confirm).
+  final String? clientSecret;
 
   @override
   ConsumerState<PaymentMethodScreen> createState() => _PaymentMethodScreenState();
 }
 
 class _PaymentMethodScreenState extends ConsumerState<PaymentMethodScreen> {
-  int _selectedIndex = 0; // 0: クレジットカード, 1: コンビニ/ATM
+  int _selectedIndex = 0; // 0: クレジットカード
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +40,7 @@ class _PaymentMethodScreenState extends ConsumerState<PaymentMethodScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: const Text('取引詳細'),
+        title: const Text('支払い方法'),
         backgroundColor: Colors.white,
         foregroundColor: AppColors.textPrimary,
       ),
@@ -47,6 +54,7 @@ class _PaymentMethodScreenState extends ConsumerState<PaymentMethodScreen> {
               selectedIndex: _selectedIndex,
               onSelectIndex: (i) => setState(() => _selectedIndex = i),
               onPay: () => _submitPayment(context, tx),
+              hasStripeSecret: widget.clientSecret != null && widget.clientSecret!.isNotEmpty,
             ),
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('読み込みに失敗: $e')),
@@ -59,10 +67,39 @@ class _PaymentMethodScreenState extends ConsumerState<PaymentMethodScreen> {
   }
 
   Future<void> _submitPayment(BuildContext context, TransactionModel tx) async {
+    final clientSecret = widget.clientSecret;
+    if (clientSecret == null || clientSecret.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('支払いを開始できません。購入画面からもう一度お試しください。'),
+        ),
+      );
+      return;
+    }
     try {
-      await ref.read(transactionRepositoryProvider).updateStatus(tx.id, TransactionStatus.paid);
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'Wanty',
+        ),
+      );
+      await Stripe.instance.presentPaymentSheet();
+
+      // 決済成功: 取引ステータスを「支払い済み」に更新
+      await ref
+          .read(transactionRepositoryProvider)
+          .updateStatus(tx.id, TransactionStatus.paid);
+
       if (!context.mounted) return;
       context.go('/purchase-complete', extra: tx.id);
+    } on StripeException catch (e) {
+      if (!context.mounted) return;
+      if (e.error.code != 'Canceled') {
+        final msg = e.error.message ?? '支払いに失敗しました';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('支払いに失敗しました: $msg')),
+        );
+      }
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -79,6 +116,7 @@ class _Content extends StatelessWidget {
     required this.selectedIndex,
     required this.onSelectIndex,
     required this.onPay,
+    required this.hasStripeSecret,
   });
 
   final TransactionModel transaction;
@@ -86,6 +124,7 @@ class _Content extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelectIndex;
   final VoidCallback onPay;
+  final bool hasStripeSecret;
 
   @override
   Widget build(BuildContext context) {
@@ -112,28 +151,18 @@ class _Content extends StatelessWidget {
             index: 0,
             selectedIndex: selectedIndex,
             icon: Icons.credit_card,
-            label: 'クレジットカード',
-            sublabel: '**** 1234',
+            label: 'クレジットカード / デビットカード',
+            sublabel: hasStripeSecret ? 'Stripeで安全に支払います' : null,
             onTap: () => onSelectIndex(0),
           ),
-          const SizedBox(height: 8),
-          _PaymentOption(
-            index: 1,
-            selectedIndex: selectedIndex,
-            icon: Icons.storefront_outlined,
-            label: 'コンビニ/ATM',
-            sublabel: null,
-            onTap: () => onSelectIndex(1),
-          ),
-          const SizedBox(height: 12),
-          TextButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.add, size: 20),
-            label: const Text('支払い方法を追加'),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.orange,
+          if (!hasStripeSecret)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                '購入確認画面から再度お進みください。',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
             ),
-          ),
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(16),
@@ -166,7 +195,7 @@ class _Content extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: onPay,
+              onPressed: hasStripeSecret ? onPay : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,

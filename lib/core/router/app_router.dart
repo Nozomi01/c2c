@@ -9,6 +9,7 @@ import '../../features/auth/presentation/screens/phone_number_screen.dart';
 import '../../features/auth/presentation/screens/otp_verification_screen.dart';
 import '../../features/services/presentation/screens/service_list_screen.dart';
 import '../../features/services/presentation/screens/service_detail_screen.dart';
+import '../../features/services/presentation/screens/service_request_screen.dart';
 import '../../features/services/presentation/screens/create_service_screen.dart';
 import '../../features/services/presentation/screens/category_service_list_screen.dart';
 import '../../features/chat/presentation/screens/chat_list_screen.dart';
@@ -21,6 +22,7 @@ import '../../features/profile/presentation/screens/likes_list_screen.dart';
 import '../../features/profile/presentation/screens/my_listings_screen.dart';
 import '../../features/profile/presentation/screens/my_page_screen.dart';
 import '../../features/profile/presentation/screens/my_transactions_screen.dart';
+import '../../features/profile/presentation/screens/my_requests_screen.dart';
 import '../../features/profile/presentation/screens/notification_settings_screen.dart';
 import '../../features/profile/presentation/screens/profile_edit_screen.dart';
 import '../../features/profile/presentation/screens/withdraw_screen.dart';
@@ -32,6 +34,10 @@ import '../../features/transactions/presentation/screens/payment_method_screen.d
 import '../../features/transactions/presentation/screens/purchase_complete_screen.dart';
 import '../../features/transactions/presentation/screens/transaction_completed_screen.dart';
 import '../../features/transactions/presentation/screens/rate_transaction_screen.dart';
+import '../../features/transactions/presentation/screens/rate_buyer_screen.dart';
+import '../../features/transactions/presentation/screens/seller_requests_list_screen.dart';
+import '../../features/transactions/presentation/screens/seller_request_detail_screen.dart';
+import '../../features/transactions/presentation/screens/revision_or_dispute_screen.dart';
 import '../../features/services/domain/models/service.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -136,6 +142,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => ServiceDetailScreen(serviceId: state.pathParameters['id']!),
       ),
       GoRoute(
+        path: '/services/:id/request',
+        name: 'serviceRequest',
+        builder: (context, state) => ServiceRequestScreen(serviceId: state.pathParameters['id']!),
+      ),
+      GoRoute(
         path: '/transactions/:id',
         name: 'transactionDetail',
         builder: (context, state) => TransactionDetailScreen(
@@ -148,6 +159,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: 'paymentMethod',
             builder: (context, state) => PaymentMethodScreen(
               transactionId: state.pathParameters['id']!,
+              clientSecret: state.extra is String ? state.extra as String : null,
             ),
           ),
           GoRoute(
@@ -164,6 +176,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               transactionId: state.pathParameters['id']!,
             ),
           ),
+          GoRoute(
+            path: 'rate-buyer',
+            name: 'rateBuyer',
+            builder: (context, state) => RateBuyerScreen(
+              transactionId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: 'issues',
+            name: 'revisionOrDispute',
+            builder: (context, state) => RevisionOrDisputeScreen(
+              transactionId: state.pathParameters['id']!,
+            ),
+          ),
         ],
       ),
       GoRoute(
@@ -172,6 +198,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => PurchaseCompleteScreen(
           transactionId: state.extra is String ? state.extra as String : '',
         ),
+      ),
+      GoRoute(
+        path: '/seller/requests',
+        name: 'sellerRequests',
+        builder: (context, state) => const SellerRequestsListScreen(),
+      ),
+      GoRoute(
+        path: '/seller/requests/:id',
+        name: 'sellerRequestDetail',
+        builder: (context, state) =>
+            SellerRequestDetailScreen(requestId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/chats/:id',
@@ -218,6 +255,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/mypage/transactions',
         name: 'myTransactions',
         builder: (context, state) => const MyTransactionsScreen(),
+      ),
+      GoRoute(
+        path: '/mypage/requests',
+        name: 'myRequests',
+        builder: (context, state) => const MyRequestsScreen(),
       ),
       GoRoute(
         path: '/mypage/withdraw',

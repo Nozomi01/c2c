@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -336,49 +337,53 @@ class _SellerSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 28,
-          backgroundColor: AppColors.primarySoft,
-          child: const Icon(Icons.person, size: 32, color: AppColors.primary),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'みみちゃん',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('users').doc(ownerId).snapshots(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() ?? <String, dynamic>{};
+        final name = (data['displayName'] as String?)?.trim();
+        final displayName = (name == null || name.isEmpty) ? '出品者' : name;
+
+        return Row(
+          children: [
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: AppColors.primarySoft,
+              child: const Icon(Icons.person, size: 32, color: AppColors.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ...List.generate(4, (_) => const Icon(Icons.star, size: 16, color: Color(0xFFFFB300))),
-                  const Icon(Icons.star_half, size: 16, color: Color(0xFFFFB300)),
-                  const SizedBox(width: 4),
                   Text(
-                    '67',
-                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    displayName,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                  const SizedBox(width: 12),
-                  Icon(Icons.verified, size: 18, color: Colors.green.shade600),
-                  const SizedBox(width: 4),
-                  Text(
-                    '本人確認済',
-                    style: TextStyle(fontSize: 13, color: Colors.green.shade700),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      ...List.generate(
+                        5,
+                        (_) => const Icon(Icons.star, size: 16, color: Color(0xFFFFB300)),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '–',
+                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -430,13 +435,12 @@ class _BottomBar extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: () {
                 context.pushNamed(
-                  'transactionDetail',
-                  pathParameters: {'id': 'new'},
-                  extra: service,
+                  'serviceRequest',
+                  pathParameters: {'id': service.id},
                 );
               },
-              icon: const Icon(Icons.check, size: 20),
-              label: const Text('購入へ'),
+              icon: const Icon(Icons.assignment, size: 20),
+              label: const Text('サービスを依頼'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,

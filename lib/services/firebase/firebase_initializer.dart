@@ -99,6 +99,6 @@ class FirebaseInitializer {
 
 class StripeConfig {
   // For security this should be injected from env at runtime.
-  static const publishableKey = 'pk_test_REPLACE_WITH_YOUR_KEY';
+  static const publishableKey = 'pk_test_51T9jifJZ3VrbWgKkFhqR4mwhBrkVEyGAgrTIEKhmx1b6FKpAfGYc288IyolFSMgSHnlndWHwPHBcmKK4bV8EfAVh00eawyZDQ3';
 }
 
