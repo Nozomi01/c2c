@@ -36,14 +36,14 @@ class ServiceRequest {
   }
 }
 
-final sellerRequestsProvider =
-    StreamProvider.autoDispose<List<ServiceRequest>>((ref) {
+final sellerRequestsProvider = StreamProvider.autoDispose<List<ServiceRequest>>((ref) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return const Stream.empty();
 
   final query = FirebaseFirestore.instance
       .collection('serviceRequests')
       .where('sellerId', isEqualTo: user.uid)
+      .where('status', isEqualTo: 'requested')
       .orderBy('createdAt', descending: true);
 
   return query.snapshots().map(
@@ -64,46 +64,10 @@ class SellerRequestsListScreen extends ConsumerWidget {
       );
     }
 
-    final asyncRequests = ref.watch(sellerRequestsProvider);
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: _buildAppBar(context),
-      body: asyncRequests.when(
-        data: (list) {
-          if (list.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.assignment_outlined,
-                      size: 64, color: AppColors.textSecondary),
-                  SizedBox(height: 16),
-                  Text(
-                    '受けている依頼はありません',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: list.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final r = list[index];
-              return _RequestTile(request: r);
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) =>
-            Center(child: Text('読み込みに失敗しました: $e')),
-      ),
+      body: const _RequestsList(),
     );
   }
 
@@ -129,6 +93,45 @@ class SellerRequestsListScreen extends ConsumerWidget {
   }
 }
 
+class _RequestsList extends ConsumerWidget {
+  const _RequestsList();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncRequests = ref.watch(sellerRequestsProvider);
+    return asyncRequests.when(
+      data: (list) {
+        if (list.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.assignment_outlined, size: 64, color: AppColors.textSecondary),
+                SizedBox(height: 16),
+                Text(
+                  '受けている依頼はありません',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
+                ),
+              ],
+            ),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: list.length,
+          separatorBuilder: (_, __) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            final r = list[index];
+            return _RequestTile(request: r);
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('読み込みに失敗しました: $e')),
+    );
+  }
+}
+
 class _RequestTile extends StatelessWidget {
   const _RequestTile({required this.request});
 
@@ -138,6 +141,10 @@ class _RequestTile extends StatelessWidget {
     switch (request.status) {
       case 'approved':
         return '承認済み';
+      case 'paid':
+        return '支払い済み';
+      case 'inProgress':
+        return '提供中';
       case 'rejected':
         return '却下';
       case 'changed':
@@ -151,6 +158,10 @@ class _RequestTile extends StatelessWidget {
     switch (request.status) {
       case 'approved':
         return AppColors.success;
+      case 'paid':
+        return AppColors.primary;
+      case 'inProgress':
+        return Colors.blueAccent;
       case 'rejected':
         return Colors.redAccent;
       case 'changed':

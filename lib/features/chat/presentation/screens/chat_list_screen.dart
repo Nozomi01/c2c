@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/config/app_theme.dart';
 import '../../domain/models/chat.dart';
@@ -102,11 +103,47 @@ class _ChatListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = otherUserId.isEmpty ? 'チャット' : 'ユーザー';
     final timeStr = chat.updatedAt != null
         ? DateFormat('M/d HH:mm').format(chat.updatedAt!)
         : '';
 
+    if (otherUserId.isEmpty) {
+      return _buildTile(
+        context,
+        title: 'チャット',
+        timeStr: timeStr,
+      );
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(otherUserId)
+          .snapshots(),
+      builder: (context, userSnap) {
+        final data = userSnap.data?.data() ?? <String, dynamic>{};
+        final name = (data['displayName'] as String?)?.trim();
+        final email = (data['email'] as String?)?.trim();
+        final emailPrefix = email != null && email.contains('@')
+            ? email.split('@').first
+            : null;
+        final title =
+            (name == null || name.isEmpty) ? (emailPrefix ?? 'ユーザー') : name;
+
+        return _buildTile(
+          context,
+          title: title,
+          timeStr: timeStr,
+        );
+      },
+    );
+  }
+
+  Widget _buildTile(
+    BuildContext context, {
+    required String title,
+    required String timeStr,
+  }) {
     return Material(
       color: Colors.white,
       child: InkWell(
@@ -179,7 +216,9 @@ class _ChatListTile extends StatelessWidget {
                             title,
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.w600,
+                              fontWeight: unreadCount > 0
+                                  ? FontWeight.bold
+                                  : FontWeight.w600,
                               color: AppColors.textPrimary,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -200,8 +239,12 @@ class _ChatListTile extends StatelessWidget {
                       chat.lastMessage ?? 'メッセージを送信しましょう',
                       style: TextStyle(
                         fontSize: 14,
-                        color: unreadCount > 0 ? AppColors.textPrimary : AppColors.textSecondary,
-                        fontWeight: unreadCount > 0 ? FontWeight.w500 : FontWeight.normal,
+                        color: unreadCount > 0
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
+                        fontWeight: unreadCount > 0
+                            ? FontWeight.w500
+                            : FontWeight.normal,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

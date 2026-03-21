@@ -9,9 +9,14 @@ final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
 });
 
 final transactionDetailProvider =
-    FutureProvider.family<TransactionModel, String>((ref, id) async {
-  final repo = ref.watch(transactionRepositoryProvider);
-  return repo.getById(id);
+    StreamProvider.family<TransactionModel, String>((ref, id) {
+  final firestore = FirebaseFirestore.instance;
+  return firestore
+      .collection('transactions')
+      .doc(id)
+      .snapshots()
+      .where((doc) => doc.exists && doc.data() != null)
+      .map((doc) => TransactionModel.fromFirestore(doc));
 });
 
 final userTransactionsProvider =

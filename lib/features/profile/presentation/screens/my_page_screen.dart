@@ -7,8 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
-import '../../../services/domain/models/service.dart';
-import '../../../services/presentation/providers/service_list_provider.dart';
 
 Widget _avatarPlaceholder(String displayName, double size) {
   return Container(
@@ -62,85 +60,123 @@ class MyPageScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // プロフィール
-            InkWell(
-              onTap: () => context.push('/settings/profile'),
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Row(
-                  children: [
-                    ClipOval(
-                      child: photoUrl != null && photoUrl.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: photoUrl,
-                              width: 64,
-                              height: 64,
-                              fit: BoxFit.cover,
-                              errorWidget: (_, __, ___) => _avatarPlaceholder(displayName, 64),
-                            )
-                          : SizedBox(
-                              width: 64,
-                              height: 64,
-                              child: _avatarPlaceholder(displayName, 64),
-                            ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                displayName,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
+            // プロフィール（Firestoreのrating/reviewCount/isVerifiedを反映）
+            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: uid == null
+                  ? const Stream.empty()
+                  : FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+              builder: (context, snap) {
+                final data = snap.data?.data() ?? <String, dynamic>{};
+                final dbName = (data['displayName'] as String?)?.trim();
+                final effectiveName = (dbName == null || dbName.isEmpty) ? displayName : dbName;
+                final dbPhoto = (data['photoURL'] as String?)?.trim();
+                final effectivePhoto = (dbPhoto == null || dbPhoto.isEmpty) ? photoUrl : dbPhoto;
+
+                final ratingRaw = data['rating'];
+                final reviewCountRaw = data['reviewCount'];
+                final verifiedRaw = data['isVerified'] ?? data['verified'] ?? data['identityVerified'];
+
+                final rating = ratingRaw is num ? ratingRaw.toDouble() : 0.0;
+                final reviewCount = reviewCountRaw is num ? reviewCountRaw.toInt() : 0;
+                final verified = verifiedRaw is bool ? verifiedRaw : false;
+
+                final r = (rating.isFinite ? rating : 0.0).clamp(0.0, 5.0);
+                final full = r.floor().clamp(0, 5);
+                final hasHalf = (r - full) >= 0.5 && full < 5;
+
+                return InkWell(
+                  onTap: () => context.push('/settings/profile'),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Row(
+                      children: [
+                        ClipOval(
+                          child: effectivePhoto != null && effectivePhoto.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: effectivePhoto,
+                                  width: 64,
+                                  height: 64,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, __, ___) =>
+                                      _avatarPlaceholder(effectiveName, 64),
+                                )
+                              : SizedBox(
+                                  width: 64,
+                                  height: 64,
+                                  child: _avatarPlaceholder(effectiveName, 64),
                                 ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    effectiveName,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.chevron_right,
+                                      size: 20, color: AppColors.textSecondary),
+                                ],
                               ),
-                              const SizedBox(width: 4),
-                              Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  ...List.generate(5, (i) {
+                                    IconData icon;
+                                    if (i < full) {
+                                      icon = Icons.star;
+                                    } else if (i == full && hasHalf) {
+                                      icon = Icons.star_half;
+                                    } else {
+                                      icon = Icons.star_border;
+                                    }
+                                    return Icon(
+                                      icon,
+                                      size: 18,
+                                      color: AppColors.warning,
+                                    );
+                                  }),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    reviewCount.toString(),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  if (verified) ...[
+                                    const SizedBox(width: 12),
+                                    const Icon(Icons.verified,
+                                        size: 18, color: AppColors.success),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '本人確認済',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.blue.shade700,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              ...List.generate(5, (i) {
-                                return Icon(
-                                  i < 4 ? Icons.star : Icons.star_half,
-                                  size: 18,
-                                  color: AppColors.warning,
-                                );
-                              }),
-                              const SizedBox(width: 6),
-                              Text(
-                                '67',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Icon(Icons.verified, size: 18, color: AppColors.success),
-                              const SizedBox(width: 4),
-                              Text(
-                                '本人確認済',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.blue.shade700,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 24),
 
@@ -201,41 +237,69 @@ class MyPageScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
-            // 3つのカード: 下書き / 出品中 / 取引中
+            // 3つのカード: 申し込み中 / 取引中 / 完了
             Row(
               children: [
                 Expanded(
-                  child: _StatCard(
-                    icon: Icons.edit_note,
-                    label: '下書き',
-                    count: 0,
-                    onTap: () => context.push('/mypage/drafts'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: StreamBuilder<List<Service>>(
+                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                     stream: uid == null
                         ? const Stream.empty()
-                        : ref.watch(serviceRepositoryProvider).watchByOwner(uid),
+                        : FirebaseFirestore.instance
+                            .collection('serviceRequests')
+                            .where('buyerId', isEqualTo: uid)
+                            .where('status', whereIn: ['pending', 'approved'])
+                            .snapshots(),
                     builder: (context, snapshot) {
-                      final count = (snapshot.data ?? []).length;
+                      final count = snapshot.data?.docs.length ?? 0;
                       return _StatCard(
-                        icon: Icons.add_box_outlined,
-                        label: '出品中',
+                        icon: Icons.assignment_outlined,
+                        label: '申し込み中',
                         count: count,
-                        onTap: () => context.push('/mypage/listings'),
+                        onTap: () => context.push('/mypage/requests'),
                       );
                     },
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _StatCard(
-                    icon: Icons.inventory_2_outlined,
-                    label: '取引中',
-                    count: 0,
-                    onTap: () => context.push('/mypage/transactions'),
+                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: uid == null
+                        ? const Stream.empty()
+                        : FirebaseFirestore.instance
+                            .collection('transactions')
+                            .where('participantIds', arrayContains: uid)
+                            .where('status', whereIn: ['pending', 'paid', 'inProgress'])
+                            .snapshots(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.data?.docs.length ?? 0;
+                      return _StatCard(
+                        icon: Icons.inventory_2_outlined,
+                        label: '取引中',
+                        count: count,
+                        onTap: () => context.push('/mypage/transactions'),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: uid == null
+                        ? const Stream.empty()
+                        : FirebaseFirestore.instance
+                            .collection('serviceRequests')
+                            .where('sellerId', isEqualTo: uid)
+                            .where('status', isEqualTo: 'completed')
+                            .snapshots(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.data?.docs.length ?? 0;
+                      return _StatCard(
+                        icon: Icons.check_circle_outline,
+                        label: '完了',
+                        count: count,
+                        onTap: () => context.push('/mypage/completed'),
+                      );
+                    },
                   ),
                 ),
               ],

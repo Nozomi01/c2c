@@ -1,29 +1,37 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
 
 final sellerRequestDetailProvider =
-    FutureProvider.family<DocumentSnapshot<Map<String, dynamic>>, String>(
-  (ref, requestId) async {
+    StreamProvider.family<DocumentSnapshot<Map<String, dynamic>>, String>(
+  (ref, requestId) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       throw Exception('ログインが必要です');
     }
-    final doc = await FirebaseFirestore.instance
+    final uid = user.uid;
+    return FirebaseFirestore.instance
         .collection('serviceRequests')
         .doc(requestId)
-        .get();
-    if (!doc.exists) {
-      throw Exception('依頼が見つかりませんでした');
-    }
-    if (doc.data()?['sellerId'] != user.uid) {
-      throw Exception('この依頼を表示する権限がありません');
-    }
-    return doc;
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists) {
+        throw Exception('依頼が見つかりませんでした');
+      }
+      final data = doc.data() ?? <String, dynamic>{};
+      final sellerId = data['sellerId'] as String?;
+      final buyerId = data['buyerId'] as String?;
+      if (sellerId != uid && buyerId != uid) {
+        throw Exception('この依頼を表示する権限がありません');
+      }
+      return doc;
+    });
   },
 );
 
@@ -40,6 +48,7 @@ class SellerRequestDetailScreen extends ConsumerStatefulWidget {
 class _SellerRequestDetailScreenState
     extends ConsumerState<SellerRequestDetailScreen> {
   bool _processing = false;
+  bool _paying = false;
 
   Future<void> _updateStatus(String status) async {
     if (_processing) return;
@@ -96,11 +105,17 @@ class _SellerRequestDetailScreenState
       body: asyncDoc.when(
         data: (doc) {
           final data = doc.data() ?? <String, dynamic>{};
+          final currentUid = FirebaseAuth.instance.currentUser?.uid;
+          final sellerId = data['sellerId'] as String?;
+          final buyerId = data['buyerId'] as String?;
+          final isSeller = currentUid != null && sellerId == currentUid;
+          final isBuyer = currentUid != null && buyerId == currentUid;
           final serviceTitle = data['serviceTitle'] as String? ?? 'サービス';
           final buyerName = data['buyerName'] as String? ?? '購入者';
           final detail = data['detail'] as String? ?? '';
           final message = data['message'] as String? ?? '';
           final status = data['status'] as String? ?? 'requested';
+          final transactionId = data['transactionId'] as String?;
           final createdAt =
               (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
           final requestedAtLabel =
@@ -205,29 +220,63 @@ class _SellerRequestDetailScreenState
                   ),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed:
-                            _processing ? null : () => _updateStatus('rejected'),
-                        style: OutlinedButton.styleFrom(
-                          side:
-                              const BorderSide(color: AppColors.border),
-                          foregroundColor: AppColors.textPrimary,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                if (isSeller) ...[
+                  if (status == 'requested') ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed:
+                                _processing ? null : () => _updateStatus('rejected'),
+                            style: OutlinedButton.styleFrom(
+                              side:
+                                  const BorderSide(color: AppColors.border),
+                              foregroundColor: AppColors.textPrimary,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text('却下する'),
                           ),
                         ),
-                        child: const Text('却下する'),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed:
+                                _processing ? null : () => _updateStatus('approved'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text(_processing ? '処理中...' : '承認して進む'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '※ 条件変更の提案や詳細な相談は、チャットから行ってください。',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary.withOpacity(0.9),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
+                  ] else if ((status == 'paid' ||
+                          status == 'inProgress' ||
+                          status == 'completed') &&
+                      transactionId != null &&
+                      transactionId.isNotEmpty) ...[
+                    SizedBox(
+                      width: double.infinity,
                       child: ElevatedButton(
-                        onPressed:
-                            _processing ? null : () => _updateStatus('approved'),
+                        onPressed: () =>
+                            context.push('/transactions/$transactionId'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
@@ -237,19 +286,92 @@ class _SellerRequestDetailScreenState
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        child: Text(_processing ? '処理中...' : '承認して進む'),
+                        child: const Text('取引詳細へ'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '※ この依頼から作成された取引の詳細画面に移動します。',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '※ 条件変更の提案や詳細な相談は、チャットから行ってください。',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary.withOpacity(0.9),
-                  ),
-                ),
+                ] else if (isBuyer) ...[
+                  if (status == 'approved') ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _paying ? null : () => _startPayment(data),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(_paying ? '処理中...' : '支払いへ進む'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '※ 支払い完了後に取引が開始されます。',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ] else if (status == 'paid' ||
+                      status == 'inProgress' ||
+                      status == 'completed') ...[
+                    if (transactionId != null && transactionId.isNotEmpty) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () =>
+                              context.push('/transactions/$transactionId'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text('取引詳細へ'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '※ この依頼から作成された取引の詳細画面に移動します。',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ] else ...[
+                      const Text(
+                        '※ この依頼は進行中です。取引詳細は「取引中」ページから確認できます。',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ] else ...[
+                    const Text(
+                      '※ 出品者が依頼を承認すると、ここから支払いに進めます。',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
               ],
             ),
           );
@@ -260,6 +382,100 @@ class _SellerRequestDetailScreenState
             Center(child: Text('読み込みに失敗しました: $e')),
       ),
     );
+  }
+  
+  Future<void> _startPayment(Map<String, dynamic> data) async {
+    if (_paying) return;
+    final serviceId = data['serviceId'] as String?;
+    final sellerId = data['sellerId'] as String?;
+    if (serviceId == null || sellerId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('サービス情報が不足しています。もう一度お試しください。')),
+      );
+      return;
+    }
+    setState(() => _paying = true);
+    try {
+      final serviceSnap = await FirebaseFirestore.instance
+          .collection('services')
+          .doc(serviceId)
+          .get();
+      final sData = serviceSnap.data();
+      if (!serviceSnap.exists || sData == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('サービスが見つかりませんでした')),
+        );
+        return;
+      }
+      final rawPrice = sData['price'];
+      final amount = (rawPrice is num) ? rawPrice.toInt() : null;
+      if (amount == null || amount <= 0) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('価格情報が無効です')),
+        );
+        return;
+      }
+
+      final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
+      final result = await functions.httpsCallable('createEscrowPaymentIntent').call({
+        'amount': amount,
+        'currency': 'jpy',
+        'serviceId': serviceId,
+        'sellerId': sellerId,
+      });
+      final resData = result.data as Map<String, dynamic>?;
+      final txId = resData?['transactionId'] as String?;
+      final clientSecret = resData?['clientSecret'] as String?;
+      if (!mounted) return;
+      if (txId == null || txId.isEmpty || clientSecret == null || clientSecret.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('支払いの準備に失敗しました。もう一度お試しください。')),
+        );
+        return;
+      }
+
+      // Notify seller that buyer started payment from this service request.
+      try {
+        await functions.httpsCallable('sendUserNotification').call({
+          'userId': sellerId,
+          'title': '新しい購入手続きが開始されました',
+          'body': '購入者が支払いを開始しました。決済完了後、サービス提供をお願いします。',
+          'type': 'transaction',
+          'extraData': {'transactionId': txId},
+        });
+      } catch (_) {
+        // Ignore notification failures.
+      }
+
+      // リクエストにも取引IDとステータスを保存しておく
+      await FirebaseFirestore.instance
+          .collection('serviceRequests')
+          .doc(widget.requestId)
+          .update({
+        'status': 'paid',
+        'transactionId': txId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      context.go('/transactions/$txId/payment', extra: clientSecret);
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('支払いの準備に失敗しました: ${e.message ?? e.code}'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('支払いの準備に失敗しました: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _paying = false);
+    }
   }
 }
 

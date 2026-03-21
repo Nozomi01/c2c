@@ -19,17 +19,68 @@ class ServiceDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final serviceAsync = ref.watch(serviceDetailProvider(serviceId));
+    final uid = FirebaseAuth.instance.currentUser?.uid;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: serviceAsync.when(
-        data: (service) => _Content(
-          service: service,
-          onChatPressed: () => _openChat(context, ref, service),
-        ),
+        data: (service) {
+          if (uid == null) {
+            return _Content(
+              service: service,
+              onChatPressed: () => _openChat(context, ref, service),
+              isLiked: false,
+              onToggleLike: () {},
+            );
+          }
+
+          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .snapshots(),
+            builder: (context, userSnap) {
+              final data = userSnap.data?.data() ?? <String, dynamic>{};
+              final raw = data['likedServiceIds'];
+              final likedIds = raw is List
+                  ? raw.whereType<String>().toSet()
+                  : <String>{};
+
+              return _Content(
+                service: service,
+                onChatPressed: () => _openChat(context, ref, service),
+                isLiked: likedIds.contains(service.id),
+                onToggleLike: () async {
+                  final currentlyLiked = likedIds.contains(service.id);
+                  await _toggleLike(
+                    uid: uid,
+                    serviceId: service.id,
+                    currentlyLiked: currentlyLiked,
+                  );
+                },
+              );
+            },
+          );
+        },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('エラーが発生しました: $e')),
       ),
+    );
+  }
+
+  Future<void> _toggleLike({
+    required String uid,
+    required String serviceId,
+    required bool currentlyLiked,
+  }) async {
+    final ref = FirebaseFirestore.instance.collection('users').doc(uid);
+    await ref.set(
+      {
+        'likedServiceIds': currentlyLiked
+            ? FieldValue.arrayRemove([serviceId])
+            : FieldValue.arrayUnion([serviceId]),
+      },
+      SetOptions(merge: true),
     );
   }
 
@@ -42,10 +93,17 @@ class ServiceDetailScreen extends ConsumerWidget {
 }
 
 class _Content extends StatelessWidget {
-  const _Content({required this.service, required this.onChatPressed});
+  const _Content({
+    required this.service,
+    required this.onChatPressed,
+    required this.isLiked,
+    required this.onToggleLike,
+  });
 
   final Service service;
   final VoidCallback onChatPressed;
+  final bool isLiked;
+  final VoidCallback onToggleLike;
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +187,12 @@ class _Content extends StatelessWidget {
             ),
           ),
         ),
-        _BottomBar(service: service, onChatPressed: onChatPressed),
+        _BottomBar(
+          service: service,
+          onChatPressed: onChatPressed,
+          isLiked: isLiked,
+          onToggleLike: onToggleLike,
+        ),
       ],
     );
   }
@@ -343,6 +406,12 @@ class _SellerSection extends StatelessWidget {
         final data = snapshot.data?.data() ?? <String, dynamic>{};
         final name = (data['displayName'] as String?)?.trim();
         final displayName = (name == null || name.isEmpty) ? '出品者' : name;
+        final ratingRaw = data['rating'];
+        final reviewCountRaw = data['reviewCount'];
+        final rating = ratingRaw is num ? ratingRaw.toDouble() : 0.0;
+        final reviewCount = reviewCountRaw is num ? reviewCountRaw.toInt() : 0;
+        final rounded = (rating.isFinite ? rating : 0.0).clamp(0.0, 5.0);
+        final filled = rounded.floor().clamp(0, 5);
 
         return Row(
           children: [
@@ -367,13 +436,19 @@ class _SellerSection extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      ...List.generate(
-                        5,
-                        (_) => const Icon(Icons.star, size: 16, color: Color(0xFFFFB300)),
-                      ),
+                      ...List.generate(5, (i) {
+                        final isFilled = i < filled;
+                        return Icon(
+                          isFilled ? Icons.star : Icons.star_border,
+                          size: 16,
+                          color: const Color(0xFFFFB300),
+                        );
+                      }),
                       const SizedBox(width: 4),
                       Text(
-                        '–',
+                        reviewCount > 0
+                            ? '${rounded.toStringAsFixed(1)} ($reviewCount)'
+                            : 'レビューなし',
                         style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                       ),
                     ],
@@ -389,10 +464,17 @@ class _SellerSection extends StatelessWidget {
 }
 
 class _BottomBar extends StatelessWidget {
-  const _BottomBar({required this.service, required this.onChatPressed});
+  const _BottomBar({
+    required this.service,
+    required this.onChatPressed,
+    required this.isLiked,
+    required this.onToggleLike,
+  });
 
   final Service service;
   final VoidCallback onChatPressed;
+  final bool isLiked;
+  final VoidCallback onToggleLike;
 
   @override
   Widget build(BuildContext context) {
@@ -411,13 +493,17 @@ class _BottomBar extends StatelessWidget {
       child: Row(
         children: [
           OutlinedButton(
-            onPressed: () {},
+            onPressed: onToggleLike,
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               side: const BorderSide(color: AppColors.border),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Icon(Icons.favorite_border, size: 24),
+            child: Icon(
+              isLiked ? Icons.favorite : Icons.favorite_border,
+              size: 24,
+              color: isLiked ? AppColors.primary : null,
+            ),
           ),
           const SizedBox(width: 8),
           OutlinedButton(

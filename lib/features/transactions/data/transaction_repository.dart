@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 
 import '../domain/models/transaction.dart';
 
@@ -25,11 +26,61 @@ class FirestoreTransactionRepository implements TransactionRepository {
 
   @override
   Stream<List<TransactionModel>> watchUserTransactions(String userId) {
-    return _col
+    // Firestore doesn't support OR queries across different fields without
+    // composite workarounds, so we merge (buyerId == userId) and
+    // (sellerId == userId) streams client-side.
+    final buyerQuery = _col
         .where('buyerId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((s) => s.docs.map(TransactionModel.fromFirestore).toList());
+        .snapshots();
+    final sellerQuery = _col
+        .where('sellerId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+
+    late final StreamController<List<TransactionModel>> controller;
+    StreamSubscription? buyerSub;
+    StreamSubscription? sellerSub;
+
+    QuerySnapshot<Map<String, dynamic>>? buyerSnap;
+    QuerySnapshot<Map<String, dynamic>>? sellerSnap;
+
+    void emit() {
+      final byId = <String, TransactionModel>{};
+      final addAll = (QuerySnapshot<Map<String, dynamic>>? snap) {
+        if (snap == null) return;
+        for (final doc in snap.docs) {
+          byId[doc.id] = TransactionModel.fromFirestore(doc);
+        }
+      };
+      addAll(buyerSnap);
+      addAll(sellerSnap);
+
+      final list = byId.values.toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      controller.add(list);
+    }
+
+    controller = StreamController<List<TransactionModel>>.broadcast(
+      onListen: () {
+        buyerSub = buyerQuery.listen((s) {
+          buyerSnap = s;
+          emit();
+        }, onError: controller.addError);
+        sellerSub = sellerQuery.listen((s) {
+          sellerSnap = s;
+          emit();
+        }, onError: controller.addError);
+      },
+      onCancel: () async {
+        await buyerSub?.cancel();
+        await sellerSub?.cancel();
+        buyerSub = null;
+        sellerSub = null;
+      },
+    );
+
+    return controller.stream;
   }
 
   @override

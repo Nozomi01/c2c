@@ -1,7 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
 import '../providers/notification_providers.dart';
@@ -44,53 +46,118 @@ class NotificationListScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final n = items[index];
               final time = DateFormat('M/d HH:mm').format(n.createdAt);
-              return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: n.read
-                      ? Colors.grey.shade100
-                      : AppColors.primarySoft.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppColors.border.withOpacity(0.5),
+              return InkWell(
+                onTap: () async {
+                  // Mark as read on tap
+                  if (!n.read) {
+                    try {
+                      await FirebaseFirestore.instance
+                          .collection('notifications')
+                          .doc(n.id)
+                          .update({'read': true});
+                    } catch (_) {
+                      // ignore tap error
+                    }
+                  }
+
+                  // Navigate to suitable page based on notification type/data
+                  if (n.type == 'chat') {
+                    final docId = n.id;
+                    try {
+                      final snap = await FirebaseFirestore.instance
+                          .collection('notifications')
+                          .doc(docId)
+                          .get();
+                      final raw = snap.data();
+                      final extraRaw = raw?['data'];
+                      final extra = extraRaw is Map
+                          ? Map<String, dynamic>.from(extraRaw)
+                          : <String, dynamic>{};
+                      final chatId = extra['chatId'] as String?;
+                      if (context.mounted) {
+                        if (chatId != null && chatId.isNotEmpty) {
+                          context.push('/chats/$chatId');
+                        } else {
+                          context.push('/messages');
+                        }
+                      }
+                    } catch (_) {
+                      // ignore navigation error
+                    }
+                  }
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: n.read
+                        ? Colors.grey.shade100
+                        : AppColors.primarySoft.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.border.withOpacity(0.5),
+                    ),
                   ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            n.title,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight:
-                                  n.read ? FontWeight.w500 : FontWeight.bold,
-                              color: AppColors.textPrimary,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              n.title,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight:
+                                    n.read ? FontWeight.w500 : FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          time,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
+                          const SizedBox(width: 8),
+                          IconButton(
+                            iconSize: 20,
+                            padding: EdgeInsets.zero,
+                            constraints:
+                                const BoxConstraints.tightFor(width: 32, height: 32),
+                            icon: Icon(
+                              n.read ? Icons.mark_email_read : Icons.mark_email_unread,
+                              color: n.read
+                                  ? AppColors.textSecondary
+                                  : AppColors.primary,
+                            ),
+                            onPressed: () async {
+                              try {
+                                await FirebaseFirestore.instance
+                                    .collection('notifications')
+                                    .doc(n.id)
+                                    .update({'read': !n.read});
+                              } catch (_) {
+                                // ignore toggle error
+                              }
+                            },
+                            tooltip: n.read ? '未読にする' : '既読にする',
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      n.body,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
+                          const SizedBox(width: 4),
+                          Text(
+                            time,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        n.body,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -116,6 +183,36 @@ class NotificationListScreen extends ConsumerWidget {
           fontSize: 18,
         ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () async {
+            final user = FirebaseAuth.instance.currentUser;
+            if (user == null) return;
+            try {
+              final db = FirebaseFirestore.instance;
+              final snap = await db
+                  .collection('notifications')
+                  .where('userId', isEqualTo: user.uid)
+                  .where('read', isEqualTo: false)
+                  .get();
+              final batch = db.batch();
+              for (final doc in snap.docs) {
+                batch.update(doc.reference, {'read': true});
+              }
+              await batch.commit();
+            } catch (_) {
+              // ignore errors for "mark all read"
+            }
+          },
+          child: const Text(
+            'すべて既読',
+            style: TextStyle(
+              color: AppColors.primary,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ],
       centerTitle: true,
       backgroundColor: Colors.white,
       elevation: 0,

@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -89,6 +90,20 @@ class _PaymentMethodScreenState extends ConsumerState<PaymentMethodScreen> {
       await ref
           .read(transactionRepositoryProvider)
           .updateStatus(tx.id, TransactionStatus.paid);
+
+      // Notify seller that payment succeeded.
+      try {
+        final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
+        await functions.httpsCallable('sendUserNotification').call({
+          'userId': tx.sellerId,
+          'title': 'お支払いが完了しました',
+          'body': 'お支払いが完了しました。サービス提供を開始してください。',
+          'type': 'transaction',
+          'extraData': {'transactionId': tx.id},
+        });
+      } catch (_) {
+        // Do not block purchase success flow if notification fails.
+      }
 
       if (!context.mounted) return;
       context.go('/purchase-complete', extra: tx.id);

@@ -27,7 +27,14 @@ class MyTransactionsScreen extends ConsumerWidget {
       appBar: _buildAppBar(context),
       body: txAsync.when(
         data: (list) {
-          if (list.isEmpty) {
+          final active = list
+              .where(
+                (t) => t.status == TransactionStatus.pending ||
+                    t.status == TransactionStatus.paid ||
+                    t.status == TransactionStatus.inProgress,
+              )
+              .toList();
+          if (active.isEmpty) {
             return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -35,7 +42,7 @@ class MyTransactionsScreen extends ConsumerWidget {
                   Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textSecondary),
                   SizedBox(height: 16),
                   Text(
-                    '取引はありません',
+                    '取引中の取引はありません',
                     style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
                   ),
                 ],
@@ -44,10 +51,10 @@ class MyTransactionsScreen extends ConsumerWidget {
           }
           return ListView.separated(
             padding: const EdgeInsets.all(16),
-            itemCount: list.length,
+            itemCount: active.length,
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (_, i) {
-              final tx = list[i];
+              final tx = active[i];
               return ListTile(
                 title: Text('¥${tx.price}'),
                 subtitle: Text(_statusLabel(tx.status)),

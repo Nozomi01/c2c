@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/config/app_links.dart';
+import '../../../../core/widgets/share_link_bottom_sheet.dart';
 import '../../../../core/config/app_theme.dart';
 import '../../../chat/presentation/providers/chat_providers.dart';
 import '../../../services/domain/models/service.dart';
@@ -53,21 +56,52 @@ class TransactionDetailScreen extends ConsumerWidget {
 
     final txAsync = ref.watch(transactionDetailProvider(transactionId));
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => _safePop(context),
+    return txAsync.when(
+      data: (tx) => Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => _safePop(context),
+          ),
+          title: const Text('取引の詳細'),
+          backgroundColor: Colors.white,
+          foregroundColor: AppColors.textPrimary,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.share_outlined),
+              tooltip: 'リンクを共有',
+              onPressed: () => _shareTransactionLink(context, tx.id),
+            ),
+          ],
         ),
-        title: const Text('取引の詳細'),
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textPrimary,
+        body: _TransactionDetailContent(transaction: tx, userId: user.uid),
       ),
-      body: txAsync.when(
-        data: (tx) => _TransactionDetailContent(transaction: tx, userId: user.uid),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
+      loading: () => Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => _safePop(context),
+          ),
+          title: const Text('取引の詳細'),
+          backgroundColor: Colors.white,
+          foregroundColor: AppColors.textPrimary,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => _safePop(context),
+          ),
+          title: const Text('取引の詳細'),
+          backgroundColor: Colors.white,
+          foregroundColor: AppColors.textPrimary,
+        ),
+        body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -86,6 +120,20 @@ class TransactionDetailScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+Future<void> _shareTransactionLink(
+  BuildContext context,
+  String transactionId,
+) async {
+  final url = AppLinks.transactionShareUrl(transactionId);
+  final shareMessage = 'Wanty 取引の詳細\n$url';
+  await showShareLinkBottomSheet(
+    context,
+    url: url,
+    shareMessage: shareMessage,
+    emailSubject: 'Wanty 取引',
+  );
 }
 
 class _PurchaseConfirmScreen extends ConsumerStatefulWidget {
@@ -122,6 +170,20 @@ class _PurchaseConfirmScreenState extends ConsumerState<_PurchaseConfirmScreen> 
         );
         return;
       }
+
+      // Notify seller that a buyer started payment (transaction created).
+      try {
+        await functions.httpsCallable('sendUserNotification').call({
+          'userId': widget.service.ownerId,
+          'title': '新しい購入が作成されました',
+          'body': 'お支払い手続きが開始されました。完了後、サービス提供をご対応ください。',
+          'type': 'transaction',
+          'extraData': {'transactionId': txId},
+        });
+      } catch (_) {
+        // Notification failure should not block purchase flow.
+      }
+
       context.go('/transactions/$txId/payment', extra: clientSecret);
     } on FirebaseFunctionsException catch (e) {
       if (!mounted) return;
@@ -345,17 +407,21 @@ class _TransactionDetailContent extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           serviceAsync.when(
-            data: (service) => _PurchasedItemCard(service: service),
+            data: (service) => _PurchasedItemCard(service: service, userId: userId),
             loading: () => const _PurchasedItemCardPlaceholder(),
             error: (_, __) => const _PurchasedItemCardPlaceholder(),
           ),
           const SizedBox(height: 20),
-          _SellerSection(),
+          _CounterpartySection(
+            currentUserId: userId,
+            buyerId: transaction.buyerId,
+            sellerId: transaction.sellerId,
+          ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () => _openChatWithSeller(context, ref),
             icon: const Icon(Icons.chat_bubble_outline, size: 20),
-            label: const Text('出品者にメッセージ'),
+            label: const Text('取引相手にメッセージ'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               side: const BorderSide(color: AppColors.border),
@@ -393,6 +459,21 @@ class _TransactionDetailContent extends ConsumerWidget {
                   await ref
                       .read(transactionRepositoryProvider)
                       .updateStatus(transaction.id, TransactionStatus.inProgress);
+
+                  // Notify buyer that seller started service.
+                  try {
+                    final functions =
+                        FirebaseFunctions.instanceFor(region: 'asia-northeast1');
+                    await functions.httpsCallable('sendUserNotification').call({
+                      'userId': transaction.buyerId,
+                      'title': 'サービス提供が開始されました',
+                      'body': '出品者がサービス提供を開始しました。',
+                      'type': 'transaction',
+                      'extraData': {'transactionId': transaction.id},
+                    });
+                  } catch (_) {
+                    // Ignore notification errors.
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -481,7 +562,9 @@ class _TransactionDetailContent extends ConsumerWidget {
   }
 
   Future<void> _openChatWithSeller(BuildContext context, WidgetRef ref) async {
-    final chatId = await ref.read(chatRepositoryProvider).findOrCreateChat(userId, transaction.sellerId);
+    final otherId = userId == transaction.sellerId ? transaction.buyerId : transaction.sellerId;
+    final chatId =
+        await ref.read(chatRepositoryProvider).findOrCreateChat(userId, otherId);
     if (context.mounted) context.push('/chats/$chatId');
   }
 
@@ -493,6 +576,19 @@ class _TransactionDetailContent extends ConsumerWidget {
       });
 
       if (context.mounted) {
+        // Notify seller that buyer confirmed receipt (transaction completed).
+        try {
+          await functions.httpsCallable('sendUserNotification').call({
+            'userId': transaction.sellerId,
+            'title': '取引が完了しました',
+            'body': '購入者が受取を完了しました。',
+            'type': 'transaction',
+            'extraData': {'transactionId': transaction.id},
+          });
+        } catch (_) {
+          // ignore notification errors
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('受取完了しました。評価をお願いします。')),
         );
@@ -628,9 +724,10 @@ class _ProgressTabs extends StatelessWidget {
 }
 
 class _PurchasedItemCard extends StatelessWidget {
-  const _PurchasedItemCard({required this.service});
+  const _PurchasedItemCard({required this.service, required this.userId});
 
   final Service service;
+  final String userId;
 
   @override
   Widget build(BuildContext context) {
@@ -706,6 +803,42 @@ class _PurchasedItemCard extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: 8),
+          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(userId)
+                .snapshots(),
+            builder: (context, userSnap) {
+              final data = userSnap.data?.data() ?? <String, dynamic>{};
+              final raw = data['likedServiceIds'];
+              final likedIds =
+                  raw is List ? raw.whereType<String>().toSet() : <String>{};
+              final isLiked = likedIds.contains(service.id);
+
+              return IconButton(
+                tooltip: isLiked ? 'いいねを外す' : 'いいねする',
+                icon: Icon(
+                  isLiked ? Icons.favorite : Icons.favorite_border,
+                  size: 22,
+                  color: isLiked ? AppColors.primary : AppColors.textSecondary,
+                ),
+                onPressed: () async {
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(userId)
+                      .set(
+                    {
+                      'likedServiceIds': isLiked
+                          ? FieldValue.arrayRemove([service.id])
+                          : FieldValue.arrayUnion([service.id]),
+                    },
+                    SetOptions(merge: true),
+                  );
+                },
+              );
+            },
+          ),
         ],
       ),
     );
@@ -729,9 +862,21 @@ class _PurchasedItemCardPlaceholder extends StatelessWidget {
   }
 }
 
-class _SellerSection extends StatelessWidget {
+class _CounterpartySection extends StatelessWidget {
+  const _CounterpartySection({
+    required this.currentUserId,
+    required this.buyerId,
+    required this.sellerId,
+  });
+
+  final String currentUserId;
+  final String buyerId;
+  final String sellerId;
+
   @override
   Widget build(BuildContext context) {
+    final otherId = currentUserId == sellerId ? buyerId : sellerId;
+    final otherIsBuyer = otherId == buyerId;
     return Row(
       children: [
         CircleAvatar(
@@ -741,30 +886,68 @@ class _SellerSection extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'みみちゃん',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
+          child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance.collection('users').doc(otherId).snapshots(),
+            builder: (context, snapshot) {
+              final data = snapshot.data?.data() ?? <String, dynamic>{};
+              final name = (data['displayName'] as String?)?.trim();
+              final email = (data['email'] as String?)?.trim();
+              final emailPrefix =
+                  email != null && email.isNotEmpty && email.contains('@')
+                      ? email.split('@').first
+                      : null;
+              final fallback = otherIsBuyer ? '購入者' : '出品者';
+              final displayName =
+                  (name == null || name.isEmpty) ? (emailPrefix ?? fallback) : name;
+              final ratingRaw = data['rating'];
+              final reviewCountRaw = data['reviewCount'];
+              final verifiedRaw = data['isVerified'] ?? data['verified'] ?? data['identityVerified'];
+
+              final rating = ratingRaw is num ? ratingRaw.toDouble() : 0.0;
+              final reviewCount = reviewCountRaw is num ? reviewCountRaw.toInt() : 0;
+              final verified = verifiedRaw is bool ? verifiedRaw : false;
+
+              final r = (rating.isFinite ? rating : 0.0).clamp(0.0, 5.0);
+              final filled = r.floor().clamp(0, 5);
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ...List.generate(5, (_) => const Icon(Icons.star, size: 14, color: Color(0xFFFFB300))),
-                  const SizedBox(width: 4),
-                  Text('(67)', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                  const SizedBox(width: 8),
-                  Icon(Icons.verified, size: 16, color: Colors.green.shade600),
-                  const SizedBox(width: 2),
-                  Text('本人確認済', style: TextStyle(fontSize: 12, color: Colors.green.shade700)),
+                  Text(
+                    displayName,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      ...List.generate(5, (i) {
+                        final isFilled = i < filled;
+                        return Icon(
+                          isFilled ? Icons.star : Icons.star_border,
+                          size: 14,
+                          color: const Color(0xFFFFB300),
+                        );
+                      }),
+                      const SizedBox(width: 4),
+                      Text(
+                        reviewCount > 0 ? '(${reviewCount.toString()})' : '(0)',
+                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                      if (verified) ...[
+                        const SizedBox(width: 8),
+                        Icon(Icons.verified, size: 16, color: Colors.green.shade600),
+                        const SizedBox(width: 2),
+                        Text('本人確認済', style: TextStyle(fontSize: 12, color: Colors.green.shade700)),
+                      ],
+                    ],
+                  ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ),
       ],

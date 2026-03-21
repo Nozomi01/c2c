@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 
 import { auth as authV1 } from 'firebase-functions/v1';
 import { onCall, HttpsError, onRequest } from 'firebase-functions/v2/https';
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { defineSecret } from 'firebase-functions/params';
 
 admin.initializeApp();
@@ -35,6 +35,65 @@ export const onAuthUserCreate = authV1.user().onCreate(async (user) => {
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 });
+
+/* ---------------- SELLER RATING AGGREGATION ---------------- */
+
+export const onTransactionReviewed = onDocumentUpdated(
+  {
+    region: REGION,
+    document: 'transactions/{id}',
+  },
+  async (event) => {
+    const before = event.data?.before?.data() as any | undefined;
+    const after = event.data?.after?.data() as any | undefined;
+    if (!after) return;
+
+    const beforeRating = typeof before?.rating === 'number' ? before.rating : null;
+    const afterRating = typeof after.rating === 'number' ? after.rating : null;
+    const beforeStatus = typeof before?.status === 'string' ? before.status : null;
+    const afterStatus = typeof after.status === 'string' ? after.status : null;
+
+    // Only react when a review was newly submitted / changed.
+    const becameReviewed = beforeStatus !== 'reviewed' && afterStatus === 'reviewed';
+    const ratingChanged = beforeRating !== afterRating && afterRating != null;
+    if (!becameReviewed && !ratingChanged) return;
+
+    const sellerId = after.sellerId as string | undefined;
+    if (!sellerId) return;
+
+    // Recompute seller rating from reviewed transactions.
+    const snap = await db
+      .collection('transactions')
+      .where('sellerId', '==', sellerId)
+      .where('status', '==', 'reviewed')
+      .get();
+
+    let sum = 0;
+    let count = 0;
+    for (const doc of snap.docs) {
+      const data = doc.data() as any;
+      const r = data.rating;
+      if (typeof r === 'number' && r > 0) {
+        sum += r;
+        count += 1;
+      }
+    }
+
+    const avg = count > 0 ? sum / count : 0;
+
+    await db
+      .collection('users')
+      .doc(sellerId)
+      .set(
+        {
+          rating: Number(avg.toFixed(2)),
+          reviewCount: count,
+          ratingUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+  }
+);
 
 /* ---------------- LINE LOGIN (custom token) ---------------- */
 
@@ -292,6 +351,53 @@ export const createStripeConnectAccountLinkHttp = onRequest(
   }
 );
 
+/* ---------------- STRIPE CONNECTED ACCOUNT BALANCE ---------------- */
+
+export const getStripeBalance = onCall(
+  {
+    region: REGION,
+    secrets: [stripeSecret],
+  },
+  async (request) => {
+    const uid =
+      (request.auth && request.auth.uid) ||
+      (typeof request.data?.userId === 'string' ? (request.data.userId as string) : null);
+
+    if (!uid) {
+      throw new HttpsError('unauthenticated', 'Authentication required');
+    }
+
+    const userSnap = await db.collection('users').doc(uid).get();
+    const userData = userSnap.data() ?? {};
+    const stripeAccountId = userData.stripeAccountId as string | undefined;
+
+    if (!stripeAccountId) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Stripe口座が未連携です（出金にはStripe連携が必要です）'
+      );
+    }
+
+    const stripe = new Stripe(stripeSecret.value(), {
+      apiVersion: '2025-02-24.acacia',
+    });
+
+    const balance = await stripe.balance.retrieve({ stripeAccount: stripeAccountId });
+
+    const available = (balance.available && balance.available[0]) || null;
+    const pending = (balance.pending && balance.pending[0]) || null;
+
+    return {
+      stripeAccountId,
+      availableAmount: available?.amount ?? 0,
+      availableCurrency: available?.currency ?? 'jpy',
+      pendingAmount: pending?.amount ?? 0,
+      pendingCurrency: pending?.currency ?? 'jpy',
+      raw: balance,
+    };
+  }
+);
+
 /* ---------------- CREATE ESCROW PAYMENT ---------------- */
 
 export const createEscrowPaymentIntent = onCall(
@@ -304,7 +410,15 @@ export const createEscrowPaymentIntent = onCall(
       throw new HttpsError('unauthenticated', 'Authentication required');
     }
 
-    const { amount, currency = 'jpy', serviceId, sellerId } = request.data;
+    const {
+      amount,
+      currency = 'jpy',
+      serviceId,
+      sellerId,
+      // Optional: platform fee in smallest currency unit (e.g. JPY).
+      // If omitted, fee is 0.
+      applicationFeeAmount = 0.1,
+    } = request.data;
 
     if (!amount || amount <= 0 || !serviceId || !sellerId) {
       throw new HttpsError('invalid-argument', 'Invalid parameters');
@@ -317,10 +431,27 @@ export const createEscrowPaymentIntent = onCall(
     });
 
     try {
+      const sellerSnap = await db.collection('users').doc(sellerId).get();
+      const sellerData = sellerSnap.data() as { stripeAccountId?: string } | undefined;
+      const sellerStripeAccountId = sellerData?.stripeAccountId;
+      if (!sellerStripeAccountId) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Seller has not connected Stripe account'
+        );
+      }
+
+      const fee =
+        typeof applicationFeeAmount === 'number' && applicationFeeAmount > 0 ? Math.floor(applicationFeeAmount) : 0;
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount,
         currency,
         capture_method: 'manual',
+        // Connect: route the captured funds to the seller (destination charge).
+        transfer_data: { destination: sellerStripeAccountId },
+        ...(fee > 0 ? { application_fee_amount: fee } : {}),
+        transfer_group: `tx_${serviceId}_${buyerId}_${sellerId}`,
         metadata: {
           serviceId,
           buyerId,
@@ -332,8 +463,10 @@ export const createEscrowPaymentIntent = onCall(
         serviceId,
         buyerId,
         sellerId,
+        sellerStripeAccountId,
         price: amount,
         currency,
+        applicationFeeAmount: fee,
         status: 'pending',
         paymentIntentId: paymentIntent.id,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -388,8 +521,11 @@ export const releaseEscrow = onCall(
       );
     }
 
-    if (tx.status !== 'pending') {
-      throw new HttpsError('failed-precondition', 'Transaction not pending');
+    if (tx.status !== 'inProgress' && tx.status !== 'paid') {
+      throw new HttpsError(
+        'failed-precondition',
+        'Transaction is not ready to be completed'
+      );
     }
 
     const stripe = new Stripe(stripeSecret.value(), {
@@ -433,21 +569,43 @@ export const requestPayout = onDocumentCreated(
       return;
     }
 
-    const stripe = new Stripe(stripeSecret.value(), {
-      apiVersion: '2025-02-24.acacia',
-    });
-
     try {
-      await stripe.transfers.create({
-        amount,
-        currency: 'jpy',
-        destination: stripeAccountId,
-        metadata: { userId },
+      const stripe = new Stripe(stripeSecret.value(), {
+        apiVersion: '2025-02-24.acacia',
       });
 
-      await snap.ref.update({
-        status: 'completed',
-        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      // Create a payout from the connected account balance to the seller's bank.
+      await stripe.payouts.create(
+        {
+          amount,
+          currency: 'jpy',
+          metadata: { userId },
+        },
+        {
+          stripeAccount: stripeAccountId,
+        }
+      );
+
+      // Decrease in-app wallet balance only after payout creation succeeds.
+      await db.runTransaction(async (t) => {
+        const userRef = db.collection('users').doc(userId as string);
+        const userSnap = await t.get(userRef);
+        const userData = userSnap.data() || {};
+        const current = Number(userData.walletBalance ?? 0);
+        const next = Math.max(0, current - Number(amount ?? 0));
+        t.set(
+          userRef,
+          {
+            walletBalance: next,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        t.update(snap.ref, {
+          status: 'completed',
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
       });
     } catch (err) {
       console.error('Transfer failed', err);
@@ -505,12 +663,90 @@ export const stripeWebhook = onRequest(
             .get();
 
           if (!txSnap.empty) {
-            await txSnap.docs[0].ref.update({
-              status: 'completed',
-              stripeStatus: paymentIntent.status,
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            const txRef = txSnap.docs[0].ref;
+
+            // Idempotent credit: Stripe webhooks can retry.
+            await db.runTransaction(async (t) => {
+              const txDoc = await t.get(txRef);
+              if (!txDoc.exists) return;
+              const tx = txDoc.data() as any;
+
+              const alreadyCredited = tx.walletCredited === true;
+              const sellerId = tx.sellerId as string | undefined;
+              const price = Number(tx.price ?? 0);
+              const fee = Number(tx.applicationFeeAmount ?? 0);
+              const net = Math.max(0, Math.floor(price - fee));
+
+              if (!alreadyCredited && sellerId && net > 0) {
+                const sellerRef = db.collection('users').doc(sellerId);
+                t.set(
+                  sellerRef,
+                  {
+                    walletBalance: admin.firestore.FieldValue.increment(net),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                  },
+                  { merge: true }
+                );
+              }
+
+              t.update(txRef, {
+                status: 'completed',
+                stripeStatus: paymentIntent.status,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                completedAt: admin.firestore.FieldValue.serverTimestamp(),
+                ...(alreadyCredited ? {} : { walletCredited: true, walletCreditedAt: admin.firestore.FieldValue.serverTimestamp() }),
+              });
             });
           }
+
+          break;
+        }
+
+        // ---------------- Payout lifecycle (bank transfer from connected account) ----------------
+        case 'payout.created':
+        case 'payout.paid':
+        case 'payout.failed':
+        case 'payout.canceled': {
+          const payout = event.data.object as Stripe.Payout;
+          const connectedAccountId = event.account as string | undefined;
+
+          if (!connectedAccountId) {
+            console.warn('Payout event without connected account:', payout.id);
+            break;
+          }
+
+          // Find our app user by stripeAccountId
+          const userSnap = await db
+            .collection('users')
+            .where('stripeAccountId', '==', connectedAccountId)
+            .limit(1)
+            .get();
+
+          if (userSnap.empty) {
+            console.warn('No user found for payout account:', connectedAccountId);
+            break;
+          }
+
+          const userRef = userSnap.docs[0].ref;
+          const payoutRef = userRef.collection('payouts').doc(payout.id);
+
+          await payoutRef.set(
+            {
+              amount: payout.amount,
+              currency: payout.currency,
+              status: payout.status,
+              arrivalDate: payout.arrival_date ? admin.firestore.Timestamp.fromMillis(payout.arrival_date * 1000) : null,
+              method: payout.method,
+              type: payout.type,
+              balanceTransaction: payout.balance_transaction,
+              failureCode: (payout as any).failure_code ?? null,
+              failureMessage: (payout as any).failure_message ?? null,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              stripeAccountId: connectedAccountId,
+              raw: payout,
+            },
+            { merge: true }
+          );
 
           break;
         }
@@ -565,10 +801,17 @@ export const sendUserNotification = onCall(
     const userDoc = await db.collection('users').doc(userId).get();
 
     if (!userDoc.exists) {
-      throw new HttpsError('not-found', 'User not found');
+      return { sent: false, reason: 'user_not_found' };
     }
 
-    const tokens = (userDoc.data()?.fcmTokens || []).filter((t: string) => !!t);
+    // Respect user notification settings.
+    const pushEnabled = userDoc.data()?.pushEnabled;
+    if (pushEnabled === false) {
+      return { sent: false, reason: 'push_disabled' };
+    }
+
+    const rawTokens = userDoc.data()?.fcmTokens;
+    const tokens = Array.isArray(rawTokens) ? rawTokens.filter((t: unknown): t is string => typeof t === 'string' && t.trim().length > 0) : [];
 
     if (!tokens.length) {
       return { sent: false, reason: 'no tokens' };
@@ -584,16 +827,56 @@ export const sendUserNotification = onCall(
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    const safeData: Record<string, string> = {};
+    if (type != null) {
+      safeData.type = String(type);
+    }
+    if (extraData && typeof extraData === 'object') {
+      for (const [k, v] of Object.entries(extraData as Record<string, unknown>)) {
+        if (!k) continue;
+        safeData[k] = typeof v === 'string' ? v : JSON.stringify(v);
+      }
+    }
+
     const message: admin.messaging.MulticastMessage = {
       tokens,
       notification: { title, body },
+      android: {
+        priority: 'high',
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+          },
+        },
+      },
       data: {
-        type: type ?? '',
-        ...(extraData || {}),
+        ...safeData,
       },
     };
 
     const response = await admin.messaging().sendEachForMulticast(message);
+    const invalidTokens: string[] = [];
+    response.responses.forEach((r, i) => {
+      if (r.success) return;
+      const code = r.error?.code;
+      if (
+        code === 'messaging/invalid-registration-token' ||
+        code === 'messaging/registration-token-not-registered'
+      ) {
+        invalidTokens.push(tokens[i]);
+      }
+    });
+    if (invalidTokens.length > 0) {
+      await db.collection('users').doc(userId).set(
+        {
+          fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
 
     return {
       sent: true,

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/material.dart';
 
 import '../domain/models/chat.dart';
 import '../domain/models/message.dart';
@@ -129,6 +130,7 @@ class FirestoreChatRepository implements ChatRepository {
       'lastMessage': lastMessage,
       'updatedAt': FieldValue.serverTimestamp(),
     };
+    debugPrint('recipientId: $recipientId');
     if (recipientId != null) {
       final unread = Map<String, dynamic>.from(chatData?['unread'] as Map? ?? {});
       final current = unread[recipientId];
@@ -141,7 +143,8 @@ class FirestoreChatRepository implements ChatRepository {
     // Send push notification to the recipient via Cloud Function.
     if (recipientId != null) {
       try {
-        final functions = FirebaseFunctions.instance;
+        // Use the same region as the deployed Cloud Function.
+        final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
         await functions.httpsCallable('sendUserNotification').call({
           'userId': recipientId,
           'title': '新しいメッセージが届きました',

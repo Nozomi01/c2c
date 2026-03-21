@@ -59,6 +59,9 @@
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>lineauth2</string>
+		<string>sms</string>
+		<string>mailto</string>
+		<string>https</string>
 	</array>
 </dict>
 </plist>

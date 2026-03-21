@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
@@ -64,7 +65,8 @@ class MyRequestsScreen extends ConsumerWidget {
             itemCount: docs.length,
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, index) {
-              final data = docs[index].data();
+              final doc = docs[index];
+              final data = doc.data();
               final title =
                   (data['serviceTitle'] as String?) ?? 'サービス';
               final status = (data['status'] as String?) ?? 'requested';
@@ -104,7 +106,7 @@ class MyRequestsScreen extends ConsumerWidget {
                 trailing: const Icon(Icons.chevron_right,
                     size: 20, color: AppColors.textSecondary),
                 onTap: () {
-                  // 今は詳細画面なし。必要なら sellerRequestDetail を再利用可能。
+                  context.push('/seller/requests/${doc.id}');
                 },
               );
             },

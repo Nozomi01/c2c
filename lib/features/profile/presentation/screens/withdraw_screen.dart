@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -6,8 +7,21 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
 
-class WithdrawScreen extends StatelessWidget {
+class WithdrawScreen extends StatefulWidget {
   const WithdrawScreen({super.key});
+
+  @override
+  State<WithdrawScreen> createState() => _WithdrawScreenState();
+}
+
+class _WithdrawScreenState extends State<WithdrawScreen> {
+  final _amountController = TextEditingController();
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +66,6 @@ class WithdrawScreen extends StatelessWidget {
                   }
 
                   final formatted = '¥${NumberFormat('#,###').format(balance)}';
-                  final canWithdraw = balance > 0;
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,7 +98,76 @@ class WithdrawScreen extends StatelessWidget {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      FutureBuilder<HttpsCallableResult<dynamic>>(
+                        future: FirebaseFunctions.instanceFor(region: 'asia-northeast1')
+                            .httpsCallable('getStripeBalance')
+                            .call({'userId': uid}),
+                        builder: (context, snap) {
+                          if (snap.connectionState == ConnectionState.waiting) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: LinearProgressIndicator(minHeight: 2),
+                            );
+                          }
+                          if (snap.hasError) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                'Stripe残高の取得に失敗しました: ${snap.error}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                            );
+                          }
+                          final data = snap.data?.data as Map<String, dynamic>?;
+                          final stripeAvailable = data?['availableAmount'] as int? ?? 0;
+                          final stripeFormatted =
+                              '¥${NumberFormat('#,###').format(stripeAvailable)}';
+                          return Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Stripe出金可能残高',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                Text(
+                                  stripeFormatted,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                       const SizedBox(height: 24),
+                      TextField(
+                        controller: _amountController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: '出金金額を入力',
+                          hintText: '例: 3000',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       Text(
                         '出金先の銀行口座を登録すると、売上金を出金できます。ストライプと連携して安全に振り込みを行います。',
                         style: TextStyle(
@@ -98,9 +180,21 @@ class WithdrawScreen extends StatelessWidget {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: !canWithdraw
-                              ? null
-                              : () async {
+                          onPressed: () async {
+                            final text = _amountController.text.trim();
+                            final parsed = int.tryParse(text) ?? 0;
+                            if (parsed <= 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('1円以上の出金金額を入力してください。')),
+                              );
+                              return;
+                            }
+                            if (parsed > balance) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('出金金額が残高（$formatted）を超えています。')),
+                              );
+                              return;
+                            }
                                   try {
                                     await FirebaseFirestore.instance.runTransaction((tx) async {
                                       final ref =
@@ -109,17 +203,32 @@ class WithdrawScreen extends StatelessWidget {
                                       final data = snap.data() ?? <String, dynamic>{};
                                       final raw = data['walletBalance'];
                                       final current = raw is num ? raw.toInt() : 0;
+                                      final stripeAccountId = data['stripeAccountId'] as String?;
                                       if (current <= 0) return;
-
-                                      // 全額出金として walletBalance を 0 に更新
-                                      tx.update(ref, {'walletBalance': 0});
+                                      if (stripeAccountId == null ||
+                                          stripeAccountId.isEmpty) {
+                                        throw Exception('Stripe口座が未連携です（出金にはStripe連携が必要です）');
+                                      }
 
                                       // 出金履歴を保存
                                       final historyRef = ref.collection('withdrawals').doc();
                                       tx.set(historyRef, {
-                                        'amount': current,
+                                        'amount': parsed,
                                         'createdAt': FieldValue.serverTimestamp(),
                                         'status': 'requested',
+                                        'stripeAccountId': stripeAccountId,
+                                      });
+
+                                      // Trigger Stripe payout (Cloud Function listens to this collection).
+                                      final payoutRef = FirebaseFirestore.instance
+                                          .collection('payout_requests')
+                                          .doc();
+                                      tx.set(payoutRef, {
+                                        'userId': uid,
+                                        'amount': parsed,
+                                        'stripeAccountId': stripeAccountId,
+                                        'status': 'requested',
+                                        'createdAt': FieldValue.serverTimestamp(),
                                       });
                                     });
 

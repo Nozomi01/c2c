@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
@@ -28,11 +30,180 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   final _controller = TextEditingController();
   bool _hasMarkedRead = false;
   bool _sendingAttachment = false;
+  final ScrollController _scrollController = ScrollController();
+
+  final List<Message> _messages = [];
+  bool _initialLoading = true;
+  bool _loadingMore = false;
+  bool _hasMore = true;
+
+  // Used for pagination (descending query uses createdAt desc).
+  DocumentSnapshot<Map<String, dynamic>>? _oldestDescDoc;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _latestSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    _loadInitialMessages();
+    _startLatestSubscription();
+  }
+
+  void _onScroll() {
+    if (!_hasMore || _loadingMore) return;
+    if (!_scrollController.hasClients) return;
+
+    // Because we display messages in chronological order (reverse: false),
+    // older messages are at the top. Trigger pagination when user scrolls near top.
+    if (_scrollController.position.pixels <= 200) {
+      _loadMoreMessages();
+    }
+  }
+
+  Future<void> _loadInitialMessages() async {
+    setState(() {
+      _initialLoading = true;
+      _hasMore = true;
+      _messages.clear();
+      _oldestDescDoc = null;
+    });
+
+    try {
+      final col = FirebaseFirestore.instance.collection('messages');
+      final snap = await col
+          .where('chatId', isEqualTo: widget.chatId)
+          .orderBy('createdAt', descending: true)
+          .limit(20)
+          .get();
+
+      final docs = snap.docs;
+      final messagesDesc = docs.map((d) => Message.fromFirestore(d)).toList();
+      final messagesAsc = messagesDesc.reversed.toList();
+
+      setState(() {
+        _messages
+          ..clear()
+          ..addAll(messagesAsc);
+        _oldestDescDoc = docs.isNotEmpty ? docs.last : null; // oldest in this page
+        _hasMore = docs.length == 20;
+        _initialLoading = false;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) return;
+        // Jump to bottom (newest).
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _initialLoading = false);
+    }
+  }
+
+  void _startLatestSubscription() {
+    _latestSub?.cancel();
+    _latestSub = FirebaseFirestore.instance
+        .collection('messages')
+        .where('chatId', isEqualTo: widget.chatId)
+        .orderBy('createdAt', descending: true)
+        .limit(20)
+        .snapshots()
+        .listen((snap) {
+      if (_loadingMore) return;
+      final messagesDesc = snap.docs.map((d) => Message.fromFirestore(d)).toList();
+      final messagesAsc = messagesDesc.reversed.toList();
+
+      setState(() {
+        // Merge: update existing messages by id and add any missing ones.
+        final map = <String, Message>{
+          for (final m in _messages) m.id: m,
+        };
+        for (final m in messagesAsc) {
+          map[m.id] = m;
+        }
+        final combined = map.values.toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        _messages
+          ..clear()
+          ..addAll(combined);
+      });
+    });
+  }
+
+  Future<void> _loadMoreMessages() async {
+    if (_loadingMore || !_hasMore) return;
+    if (_oldestDescDoc == null) return;
+    if (!_scrollController.hasClients) return;
+
+    setState(() => _loadingMore = true);
+
+    // Track scroll extent so we can keep the visible messages stable.
+    final oldMaxScrollExtent = _scrollController.position.maxScrollExtent;
+
+    try {
+      final col = FirebaseFirestore.instance.collection('messages');
+      final snap = await col
+          .where('chatId', isEqualTo: widget.chatId)
+          .orderBy('createdAt', descending: true)
+          .startAfterDocument(_oldestDescDoc!)
+          .limit(20)
+          .get();
+
+      final docs = snap.docs;
+      if (docs.isEmpty) {
+        setState(() {
+          _hasMore = false;
+          _loadingMore = false;
+        });
+        return;
+      }
+
+      final messagesDesc = docs.map((d) => Message.fromFirestore(d)).toList();
+      final messagesAsc = messagesDesc.reversed.toList();
+
+      final existingIds = _messages.map((m) => m.id).toSet();
+      final newMessages = messagesAsc.where((m) => !existingIds.contains(m.id)).toList();
+
+      final newOldestDescDoc = docs.last;
+
+      setState(() {
+        _messages.insertAll(0, newMessages);
+        _oldestDescDoc = newOldestDescDoc;
+        _hasMore = docs.length == 20;
+        _loadingMore = false;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) return;
+        final newMaxScrollExtent = _scrollController.position.maxScrollExtent;
+        final diff = newMaxScrollExtent - oldMaxScrollExtent;
+        _scrollController.jumpTo(_scrollController.offset + diff);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingMore = false);
+    }
+  }
 
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _latestSub?.cancel();
     super.dispose();
+  }
+
+  void _scrollToBottom() {
+    if (!_scrollController.hasClients) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   @override
@@ -52,7 +223,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       });
     }
 
-    final messagesAsync = ref.watch(messagesProvider(widget.chatId));
     final repo = ref.watch(chatRepositoryProvider);
 
     return Scaffold(
@@ -61,33 +231,29 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       body: Column(
         children: [
           Expanded(
-            child: messagesAsync.when(
-              data: (messages) {
-                if (messages.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'メッセージを送信して会話を始めましょう',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
+            child: _initialLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _messages.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'メッセージを送信して会話を始めましょう',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        reverse: false,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        itemCount: _messages.length,
+                        itemBuilder: (context, index) {
+                          final msg = _messages[index];
+                          final isMine = msg.senderId == user.uid;
+                          return _MessageBubble(message: msg, isMine: isMine);
+                        },
                       ),
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  reverse: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = messages[index];
-                    final isMine = msg.senderId == user.uid;
-                    return _MessageBubble(message: msg, isMine: isMine);
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('エラー: $e')),
-            ),
           ),
           Container(
             padding: EdgeInsets.only(
@@ -170,6 +336,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       senderId: uid,
       text: text,
     );
+    _scrollToBottom();
   }
 
   Future<void> _pickAndSendImage(ChatRepository repo, String uid) async {
@@ -192,6 +359,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         text: '画像を送信しました',
         imageUrl: url,
       );
+      _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -241,6 +409,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         senderId: uid,
         text: text,
       );
+      _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -291,17 +460,73 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
 
   PreferredSizeWidget _buildAppBar(BuildContext context, String currentUserId) {
     final chatAsync = ref.watch(chatDetailProvider(widget.chatId));
-    final title = chatAsync.when(
+    final titleWidget = chatAsync.when(
       data: (chat) {
-        if (chat == null) return 'チャット';
+        if (chat == null) {
+          return const Text(
+            'チャット',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          );
+        }
         final otherId = chat.users.firstWhere(
           (u) => u != currentUserId,
           orElse: () => '',
         );
-        return otherId.isEmpty ? 'チャット' : 'ユーザー';
+        if (otherId.isEmpty) {
+          return const Text(
+            'チャット',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          );
+        }
+
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance.collection('users').doc(otherId).snapshots(),
+          builder: (context, userSnap) {
+            final data = userSnap.data?.data() ?? <String, dynamic>{};
+            final name = (data['displayName'] as String?)?.trim();
+            final email = (data['email'] as String?)?.trim();
+            final emailPrefix = email != null && email.contains('@')
+                ? email.split('@').first
+                : null;
+            final title = (name == null || name.isEmpty)
+                ? (emailPrefix ?? 'ユーザー')
+                : name;
+
+            return Text(
+              title,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            );
+          },
+        );
       },
-      loading: () => 'チャット',
-      error: (_, __) => 'チャット',
+      loading: () => const Text(
+        'チャット',
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+      ),
+      error: (_, __) => const Text(
+        'チャット',
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+      ),
     );
 
     return AppBar(
@@ -309,14 +534,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         icon: const Icon(Icons.chevron_left),
         onPressed: () => context.pop(),
       ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.bold,
-          fontSize: 18,
-        ),
-      ),
+      title: titleWidget,
       centerTitle: true,
       backgroundColor: Colors.white,
       elevation: 0,

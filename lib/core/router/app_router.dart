@@ -23,6 +23,7 @@ import '../../features/profile/presentation/screens/my_listings_screen.dart';
 import '../../features/profile/presentation/screens/my_page_screen.dart';
 import '../../features/profile/presentation/screens/my_transactions_screen.dart';
 import '../../features/profile/presentation/screens/my_requests_screen.dart';
+import '../../features/profile/presentation/screens/completed_items_screen.dart';
 import '../../features/profile/presentation/screens/notification_settings_screen.dart';
 import '../../features/profile/presentation/screens/profile_edit_screen.dart';
 import '../../features/profile/presentation/screens/withdraw_screen.dart';
@@ -42,8 +43,7 @@ import '../../features/services/domain/models/service.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
-final appRouterProvider = Provider<GoRouter>((ref) {
-  return GoRouter(
+final GoRouter _appRouter = GoRouter(
     navigatorKey: navigatorKey,
     initialLocation: '/',
     routes: [
@@ -257,6 +257,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MyTransactionsScreen(),
       ),
       GoRoute(
+        path: '/mypage/completed',
+        name: 'completedItems',
+        builder: (context, state) => const CompletedItemsScreen(),
+      ),
+      GoRoute(
         path: '/mypage/requests',
         name: 'myRequests',
         builder: (context, state) => const MyRequestsScreen(),
@@ -293,5 +298,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
-});
+
+final appRouterProvider = Provider<GoRouter>((ref) => _appRouter);
 
