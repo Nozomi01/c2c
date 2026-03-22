@@ -177,7 +177,15 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         if (!_scrollController.hasClients) return;
         final newMaxScrollExtent = _scrollController.position.maxScrollExtent;
         final diff = newMaxScrollExtent - oldMaxScrollExtent;
-        _scrollController.jumpTo(_scrollController.offset + diff);
+        final target = (_scrollController.offset + diff).clamp(
+          0.0,
+          _scrollController.position.maxScrollExtent,
+        );
+        _scrollController.animateTo(
+          target,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        );
       });
     } catch (_) {
       if (!mounted) return;
@@ -262,26 +270,92 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                     : Builder(
                         builder: (context) {
                           final chatItems = _chatItemsWithDayDividers(_messages);
-                          return ListView.builder(
-                            controller: _scrollController,
-                            reverse: false,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            itemCount: chatItems.length,
-                            itemBuilder: (context, index) {
-                              final item = chatItems[index];
-                              if (item is DateTime) {
-                                return _DayDivider(date: item);
-                              }
-                              final msg = item as Message;
-                              final isMine = msg.senderId == user.uid;
-                              return _MessageBubble(
-                                message: msg,
-                                isMine: isMine,
-                              );
-                            },
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            alignment: Alignment.topCenter,
+                            children: [
+                              ListView.builder(
+                                controller: _scrollController,
+                                reverse: false,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                itemCount: chatItems.length,
+                                itemBuilder: (context, index) {
+                                  final item = chatItems[index];
+                                  if (item is DateTime) {
+                                    return _DayDivider(date: item);
+                                  }
+                                  final msg = item as Message;
+                                  final isMine = msg.senderId == user.uid;
+                                  return _MessageBubble(
+                                    message: msg,
+                                    isMine: isMine,
+                                  );
+                                },
+                              ),
+                              // Load-more feedback (does not affect scroll extent).
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                child: IgnorePointer(
+                                  child: AnimatedOpacity(
+                                    opacity: _loadingMore ? 1 : 0,
+                                    duration: const Duration(milliseconds: 220),
+                                    curve: Curves.easeOut,
+                                    child: AnimatedSlide(
+                                      offset: _loadingMore
+                                          ? Offset.zero
+                                          : const Offset(0, -0.12),
+                                      duration: const Duration(milliseconds: 280),
+                                      curve: Curves.easeOutCubic,
+                                      child: Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.only(
+                                          top: 8,
+                                          bottom: 20,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              AppColors.background
+                                                  .withValues(alpha: 0.98),
+                                              AppColors.background
+                                                  .withValues(alpha: 0),
+                                            ],
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            SizedBox(
+                                              width: 26,
+                                              height: 26,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.5,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              '読み込み中…',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           );
                         },
                       ),
