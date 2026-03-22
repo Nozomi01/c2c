@@ -11,6 +11,8 @@ import 'package:flutter_line_sdk/flutter_line_sdk.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../../../core/config/google_sign_in_config.dart';
+
 abstract class AuthRepository {
   Stream<User?> authStateChanges();
   Future<void> signOut();
@@ -33,6 +35,12 @@ abstract class AuthRepository {
     required String smsCode,
   });
 
+  /// Link Google to the current user ([linkWithCredential]). Throws if Google is already linked.
+  Future<UserCredential> linkGoogleToCurrentUser();
+
+  /// Link Apple to the current user (iOS only). Throws if Apple is already linked.
+  Future<UserCredential> linkAppleToCurrentUser();
+
   Future<UserCredential> signInWithApple();
   Future<UserCredential> signInWithGoogle();
   Future<UserCredential> signInWithLine();
@@ -43,6 +51,12 @@ class FirebaseAuthRepository implements AuthRepository {
   FirebaseAuthRepository(this._auth);
 
   final FirebaseAuth _auth;
+
+  /// Single instance avoids multiple Pigeon channels; [serverClientId] fixes Android ID token + Firebase Auth.
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: const <String>['email', 'profile'],
+    serverClientId: kGoogleSignInServerClientId,
+  );
 
   @override
   Stream<User?> authStateChanges() => _auth.authStateChanges();
@@ -119,6 +133,72 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<UserCredential> linkGoogleToCurrentUser() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'ログインが必要です',
+      );
+    }
+    if (user.providerData.any((p) => p.providerId == 'google.com')) {
+      throw FirebaseAuthException(
+        code: 'provider-already-linked',
+        message: 'Googleは既に連携済みです',
+      );
+    }
+    final googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) {
+      throw FirebaseAuthException(
+        code: 'sign_in_aborted',
+        message: 'キャンセルされました',
+      );
+    }
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    final cred = await user.linkWithCredential(credential);
+    await cred.user?.reload();
+    await _saveGoogleProfileToFirestore(_auth.currentUser, googleUser);
+    return cred;
+  }
+
+  @override
+  Future<UserCredential> linkAppleToCurrentUser() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'ログインが必要です',
+      );
+    }
+    if (user.providerData.any((p) => p.providerId == 'apple.com')) {
+      throw FirebaseAuthException(
+        code: 'provider-already-linked',
+        message: 'Appleは既に連携済みです',
+      );
+    }
+    final rawNonce = _generateNonce();
+    final nonce = _sha256ofString(rawNonce);
+    final appleCredential = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: nonce,
+    );
+    final oauthCredential = OAuthProvider('apple.com').credential(
+      idToken: appleCredential.identityToken,
+      rawNonce: rawNonce,
+    );
+    final cred = await user.linkWithCredential(oauthCredential);
+    await cred.user?.reload();
+    return cred;
+  }
+
+  @override
   Future<UserCredential> signInWithApple() async {
     // Only supported on Apple platforms; caller should guard on Platform if needed.
     final rawNonce = _generateNonce();
@@ -142,8 +222,7 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<UserCredential> signInWithGoogle() async {
-    final googleSignIn = GoogleSignIn();
-    final googleUser = await googleSignIn.signIn();
+    final googleUser = await _googleSignIn.signIn();
     if (googleUser == null) {
       throw FirebaseAuthException(
         code: 'sign_in_aborted',

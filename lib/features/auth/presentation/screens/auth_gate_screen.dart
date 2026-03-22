@@ -1,8 +1,11 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/config/app_links.dart';
 import '../../../../core/config/app_theme.dart';
 import '../providers/auth_providers.dart';
 
@@ -16,7 +19,7 @@ class AuthGateScreen extends ConsumerWidget {
     return authState.when(
       data: (user) {
         if (user == null) {
-          return const _AuthLandingScreen();
+          return _AuthLandingScreen();
         }
         WidgetsBinding.instance.addPostFrameCallback((_) {
           context.go('/home');
@@ -35,11 +38,78 @@ class AuthGateScreen extends ConsumerWidget {
   }
 }
 
-class _AuthLandingScreen extends ConsumerWidget {
-  const _AuthLandingScreen();
+class _AuthLandingScreen extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_AuthLandingScreen> createState() => _AuthLandingScreenState();
+}
+
+class _AuthLandingScreenState extends ConsumerState<_AuthLandingScreen> {
+  bool _termsAccepted = false;
+
+  late final TapGestureRecognizer _termsTap;
+  late final TapGestureRecognizer _privacyTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    _termsTap = TapGestureRecognizer()
+      ..onTap = () => _openLegalUrl(AppLinks.termsOfServiceUrl);
+    _privacyTap = TapGestureRecognizer()
+      ..onTap = () => _openLegalUrl(AppLinks.privacyPolicyUrl);
+  }
+
+  @override
+  void dispose() {
+    _termsTap.dispose();
+    _privacyTap.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openLegalUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('リンクを開けませんでした')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('リンクを開けませんでした')),
+        );
+      }
+    }
+  }
+
+  void _requireTerms(void Function() onAllowed) {
+    if (!_termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('利用規約とプライバシーポリシーに同意してください。'),
+        ),
+      );
+      return;
+    }
+    onAllowed();
+  }
+
+  Future<void> _requireTermsAsync(Future<void> Function() onAllowed) async {
+    if (!_termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('利用規約とプライバシーポリシーに同意してください。'),
+        ),
+      );
+      return;
+    }
+    await onAllowed();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final repo = ref.read(authRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
 
@@ -61,8 +131,8 @@ class _AuthLandingScreen extends ConsumerWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.white.withOpacity(0.96),
-                    Colors.white.withOpacity(0.96),
+                    Colors.white.withValues(alpha: 0.96),
+                    Colors.white.withValues(alpha: 0.96),
                   ],
                 ),
               ),
@@ -94,12 +164,13 @@ class _AuthLandingScreen extends ConsumerWidget {
                     icon: Icons.facebook,
                     iconColor: const Color(0xFF1877F3), // Facebook blue
                     onPressed: () {
-                      // TODO: Facebook login
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('Facebookログインは準備中です'),
-                        ),
-                      );
+                      _requireTerms(() {
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Facebookログインは準備中です'),
+                          ),
+                        );
+                      });
                     },
                   ),
                   const SizedBox(height: 12),
@@ -107,34 +178,38 @@ class _AuthLandingScreen extends ConsumerWidget {
                     _LandingPrimaryButton(
                       label: 'Appleで登録/ログイン',
                       icon: Icons.apple,
-                      onPressed: () async {
-                        try {
-                          await repo.signInWithApple();
-                          if (context.mounted) context.go('/home');
-                        } catch (e) {
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text('Appleログインに失敗しました: $e'),
-                            ),
-                          );
-                        }
+                      onPressed: () {
+                        _requireTermsAsync(() async {
+                          try {
+                            await repo.signInWithApple();
+                            if (context.mounted) context.go('/home');
+                          } catch (e) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Appleログインに失敗しました: $e'),
+                              ),
+                            );
+                          }
+                        });
                       },
                     )
                   else
                     _LandingPrimaryButton(
                       label: 'Googleで登録/ログイン',
                       icon: Icons.g_mobiledata_rounded,
-                      onPressed: () async {
-                        try {
-                          await repo.signInWithGoogle();
-                          if (context.mounted) context.go('/home');
-                        } catch (e) {
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text('Googleログインに失敗しました: $e'),
-                            ),
-                          );
-                        }
+                      onPressed: () {
+                        _requireTermsAsync(() async {
+                          try {
+                            await repo.signInWithGoogle();
+                            if (context.mounted) context.go('/home');
+                          } catch (e) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Googleログインに失敗しました: $e'),
+                              ),
+                            );
+                          }
+                        });
                       },
                     ),
                   const SizedBox(height: 24),
@@ -145,54 +220,99 @@ class _AuthLandingScreen extends ConsumerWidget {
                         color: const Color(0xFFFDC700),
                         icon: Icons.phone_iphone,
                         onTap: () {
-                          context.push('/auth/phone');
+                          _requireTerms(() {
+                            context.push('/auth/phone');
+                          });
                         },
                       ),
                       const SizedBox(width: 24),
                       _CircleIconButton(
                         color: const Color(0xFF06C755),
                         icon: Icons.chat_bubble,
-                        onTap: () async {
-                          try {
-                            await repo.signInWithLine();
-                            if (context.mounted) context.go('/home');
-                          } catch (e) {
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text('LINEログインに失敗しました: $e'),
-                              ),
-                            );
-                          }
+                        onTap: () {
+                          _requireTermsAsync(() async {
+                            try {
+                              await repo.signInWithLine();
+                              if (context.mounted) context.go('/home');
+                            } catch (e) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text('LINEログインに失敗しました: $e'),
+                                ),
+                              );
+                            }
+                          });
                         },
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  Opacity(
-                    opacity: 0.7,
+                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(
-                          Icons.check_box_outline_blank,
-                          size: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                        SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            '次に進むと、利用規約とプライバシーポリシーに同意することになります。',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: AppColors.textSecondary,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: Checkbox(
+                              value: _termsAccepted,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                              onChanged: (v) {
+                                setState(() {
+                                  _termsAccepted = v ?? false;
+                                });
+                              },
                             ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: RichText(
                             textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: const TextStyle(
+                                fontSize: 11,
+                                height: 1.35,
+                                color: AppColors.textSecondary,
+                              ),
+                              children: [
+                                const TextSpan(
+                                  text: '次に進むと、',
+                                ),
+                                TextSpan(
+                                  text: '利用規約',
+                                  style: const TextStyle(
+                                    color: Color(0xFF1565C0),
+                                    decoration: TextDecoration.underline,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  recognizer: _termsTap,
+                                ),
+                                const TextSpan(text: 'と'),
+                                TextSpan(
+                                  text: 'プライバシーポリシー',
+                                  style: const TextStyle(
+                                    color: Color(0xFF1565C0),
+                                    decoration: TextDecoration.underline,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  recognizer: _privacyTap,
+                                ),
+                                const TextSpan(
+                                  text: 'に同意することになります。',
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Spacer(),
                 ],
               ),
             ),

@@ -15,4 +15,10 @@ class AppLinks {
   /// Link to the service request form for a listing (same route as mobile).
   static String serviceRequestShareUrl(String serviceId) =>
       '$_hostBaseUrl/#/services/$serviceId/request';
+
+  /// 利用規約（ホスティングにページを置いたらパスを合わせてください）
+  static String get termsOfServiceUrl => '$_hostBaseUrl/terms';
+
+  /// プライバシーポリシー
+  static String get privacyPolicyUrl => '$_hostBaseUrl/privacy';
 }

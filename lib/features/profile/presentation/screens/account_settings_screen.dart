@@ -1,10 +1,14 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../auth/data/auth_repository.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../providers/profile_mode_provider.dart';
+import '../utils/account_link_availability.dart';
 import '../utils/account_login_method_ui.dart';
 
 class AccountSettingsScreen extends ConsumerWidget {
@@ -42,6 +46,13 @@ class AccountSettingsScreen extends ConsumerWidget {
               builder: (context) {
                 final linkedMethods =
                     AccountLoginMethodUi.listFromFirebaseUser(user);
+                final linkAvailability = AccountLinkAvailability.fromUser(
+                  user,
+                  applePlatformSupported:
+                      defaultTargetPlatform == TargetPlatform.iOS,
+                );
+                final showLoginSection =
+                    linkedMethods.isNotEmpty || linkAvailability.hasAny;
                 return SingleChildScrollView(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -103,7 +114,7 @@ class AccountSettingsScreen extends ConsumerWidget {
                     subtitle: '名前・アイコンを変更',
                     onTap: () => context.push('/settings/profile'),
                   ),
-                  if (linkedMethods.isNotEmpty) ...[
+                  if (showLoginSection) ...[
                     const SizedBox(height: 20),
                     const Text(
                       'ログイン連携',
@@ -115,42 +126,91 @@ class AccountSettingsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'このアカウントに紐づいているログイン方法です。複数登録されている場合はいずれでもログインできます。',
+                      linkedMethods.isEmpty
+                          ? 'まだOAuth連携がありません。下から追加できます。電話番号の追加はこの下の「電話番号」から行ってください。'
+                          : 'このアカウントに紐づいているログイン方法です。複数登録されている場合はいずれでもログインできます。電話番号の追加・変更は下の「電話番号」から行ってください。',
                       style: TextStyle(
                         fontSize: 13,
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    for (final entry in linkedMethods.asMap().entries) ...[
-                      if (entry.key > 0) const SizedBox(height: 8),
-                      _SettingsTile(
-                        icon: entry.value.icon,
-                        label: entry.value.isPrimary
-                            ? '${entry.value.label}（メイン）'
-                            : entry.value.label,
-                        subtitle: entry.value.subtitle,
-                        onTap: () {
-                          final m = entry.value;
-                          showDialog<void>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: Text(m.label),
-                              content: Text(
-                                m.isPrimary
-                                    ? '${m.infoMessage}\n\n※「メイン」はこのアカウントで主なログイン方法として扱われているものです。'
-                                    : m.infoMessage,
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx),
-                                  child: const Text('閉じる'),
+                    if (linkedMethods.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      for (final entry in linkedMethods.asMap().entries) ...[
+                        if (entry.key > 0) const SizedBox(height: 8),
+                        _SettingsTile(
+                          icon: entry.value.icon,
+                          label: entry.value.isPrimary
+                              ? '${entry.value.label}（メイン）'
+                              : entry.value.label,
+                          subtitle: entry.value.subtitle,
+                          onTap: () {
+                            final m = entry.value;
+                            showDialog<void>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: Text(m.label),
+                                content: Text(
+                                  m.isPrimary
+                                      ? '${m.infoMessage}\n\n※「メイン」はこのアカウントで主なログイン方法として扱われているものです。'
+                                      : m.infoMessage,
                                 ),
-                              ],
-                            ),
-                          );
-                        },
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: const Text('閉じる'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ],
+                    if (linkAvailability.hasAny) ...[
+                      const SizedBox(height: 16),
+                      const Text(
+                        '追加できるログイン',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '未連携の方法を追加すると、別の端末や状況でもログインしやすくなります。',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (linkAvailability.canAddGoogle)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _SettingsTile(
+                            icon: Icons.g_mobiledata_rounded,
+                            label: 'Googleを追加',
+                            subtitle: 'Googleアカウントを連携',
+                            onTap: () => _runOAuthLink(
+                              context,
+                              ref,
+                              (repo) => repo.linkGoogleToCurrentUser(),
+                            ),
+                          ),
+                        ),
+                      if (linkAvailability.canAddApple)
+                        _SettingsTile(
+                          icon: Icons.apple,
+                          label: 'Appleを追加',
+                          subtitle: 'Appleでサインインを連携',
+                          onTap: () => _runOAuthLink(
+                            context,
+                            ref,
+                            (repo) => repo.linkAppleToCurrentUser(),
+                          ),
+                        ),
                     ],
                     const SizedBox(height: 8),
                   ] else
@@ -288,4 +348,54 @@ class _SettingsTile extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _runOAuthLink(
+  BuildContext context,
+  WidgetRef ref,
+  Future<Object?> Function(AuthRepository repo) action,
+) async {
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const PopScope(
+      canPop: false,
+      child: Center(
+        child: CircularProgressIndicator(),
+      ),
+    ),
+  );
+  try {
+    final repo = ref.read(authRepositoryProvider);
+    await action(repo);
+    if (context.mounted) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('連携しました')),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_mapAuthLinkError(e))),
+      );
+    }
+  }
+}
+
+String _mapAuthLinkError(Object e) {
+  if (e is FirebaseAuthException) {
+    switch (e.code) {
+      case 'credential-already-in-use':
+        return 'このログイン先は別のアカウントで使われています。';
+      case 'provider-already-linked':
+        return e.message ?? '既に連携済みです';
+      case 'sign_in_aborted':
+        return 'キャンセルされました';
+      default:
+        return e.message ?? e.code;
+    }
+  }
+  return e.toString();
 }
