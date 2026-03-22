@@ -206,6 +206,22 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     });
   }
 
+  /// Each calendar day (local) gets a [DateTime] marker, then [Message]s for that day.
+  List<Object> _chatItemsWithDayDividers(List<Message> messages) {
+    if (messages.isEmpty) return [];
+    final out = <Object>[];
+    DateTime? lastDay;
+    for (final m in messages) {
+      final day = DateUtils.dateOnly(m.createdAt.toLocal());
+      if (lastDay == null || day != lastDay) {
+        out.add(day);
+        lastDay = day;
+      }
+      out.add(m);
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -243,15 +259,30 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                           ),
                         ),
                       )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        reverse: false,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          final msg = _messages[index];
-                          final isMine = msg.senderId == user.uid;
-                          return _MessageBubble(message: msg, isMine: isMine);
+                    : Builder(
+                        builder: (context) {
+                          final chatItems = _chatItemsWithDayDividers(_messages);
+                          return ListView.builder(
+                            controller: _scrollController,
+                            reverse: false,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            itemCount: chatItems.length,
+                            itemBuilder: (context, index) {
+                              final item = chatItems[index];
+                              if (item is DateTime) {
+                                return _DayDivider(date: item);
+                              }
+                              final msg = item as Message;
+                              final isMine = msg.senderId == user.uid;
+                              return _MessageBubble(
+                                message: msg,
+                                isMine: isMine,
+                              );
+                            },
+                          );
                         },
                       ),
           ),
@@ -539,6 +570,59 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       backgroundColor: Colors.white,
       elevation: 0,
       surfaceTintColor: Colors.white,
+    );
+  }
+}
+
+/// Horizontal rule with centered date (local calendar day).
+class _DayDivider extends StatelessWidget {
+  const _DayDivider({required this.date});
+
+  /// Date-only in local time (midnight).
+  final DateTime date;
+
+  static String _label(DateTime day) {
+    final now = DateTime.now();
+    final today = DateUtils.dateOnly(now);
+    final yesterday = today.subtract(const Duration(days: 1));
+    if (day == today) return '今日';
+    if (day == yesterday) return '昨日';
+    return DateFormat('yyyy年M月d日').format(day);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: Colors.grey.shade300,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              _label(date),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: Colors.grey.shade300,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
