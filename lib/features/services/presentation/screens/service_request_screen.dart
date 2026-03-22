@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/config/app_links.dart';
 import '../../../../core/widgets/share_link_bottom_sheet.dart';
 import '../../../../core/config/app_theme.dart';
 import '../../domain/models/service.dart';
@@ -148,7 +147,7 @@ class _ServiceRequestScreenState extends ConsumerState<ServiceRequestScreen> {
               return IconButton(
                 icon: const Icon(Icons.share_outlined),
                 tooltip: 'リンクを共有',
-                onPressed: () => _shareServiceRequestLink(
+                onPressed: () => showServiceRequestShareSheet(
                   buttonContext,
                   widget.serviceId,
                 ),
@@ -272,21 +271,6 @@ class _ServiceRequestScreenState extends ConsumerState<ServiceRequestScreen> {
       ),
     );
   }
-}
-
-Future<void> _shareServiceRequestLink(
-  BuildContext context,
-  String serviceId,
-) async {
-  final url = AppLinks.serviceRequestShareUrl(serviceId);
-  final shareMessage = 'Wanty サービス依頼\n$url';
-  debugPrint('shareMessage: $shareMessage');
-  await showShareLinkBottomSheet(
-    context,
-    url: url,
-    shareMessage: shareMessage,
-    emailSubject: 'Wanty サービス依頼',
-  );
 }
 
 class _ServiceSummary extends StatelessWidget {

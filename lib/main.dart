@@ -2,6 +2,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_line_sdk/flutter_line_sdk.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/config/app_theme.dart';
 import 'core/config/line_config.dart';
@@ -16,6 +17,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await FirebaseInitializer.initialize();
+
+  // Warm up shared_preferences after bindings so the Pigeon channel is ready
+  // before any provider reads prefs (avoids channel-error on Android).
+  try {
+    await SharedPreferences.getInstance();
+  } catch (e, st) {
+    debugPrint('SharedPreferences warm-up skipped: $e\n$st');
+  }
 
   if (lineChannelId.isNotEmpty) {
     await LineSDK.instance.setup(lineChannelId);

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/widgets/share_link_bottom_sheet.dart';
 import '../../../chat/presentation/providers/chat_providers.dart';
 import '../../domain/models/service.dart';
 import '../providers/service_detail_provider.dart';
@@ -31,6 +32,7 @@ class ServiceDetailScreen extends ConsumerWidget {
               onChatPressed: () => _openChat(context, ref, service),
               isLiked: false,
               onToggleLike: () {},
+              onSharePressed: () => showServiceRequestShareSheet(context, service.id),
             );
           }
 
@@ -58,6 +60,7 @@ class ServiceDetailScreen extends ConsumerWidget {
                     currentlyLiked: currentlyLiked,
                   );
                 },
+                onSharePressed: () => showServiceRequestShareSheet(context, service.id),
               );
             },
           );
@@ -98,12 +101,14 @@ class _Content extends StatelessWidget {
     required this.onChatPressed,
     required this.isLiked,
     required this.onToggleLike,
+    required this.onSharePressed,
   });
 
   final Service service;
   final VoidCallback onChatPressed;
   final bool isLiked;
   final VoidCallback onToggleLike;
+  final VoidCallback onSharePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +119,10 @@ class _Content extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ImageHeader(images: service.images),
+                _ImageHeader(
+                  images: service.images,
+                  onSharePressed: onSharePressed,
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                   child: Column(
@@ -208,9 +216,13 @@ class _Content extends StatelessWidget {
 }
 
 class _ImageHeader extends StatelessWidget {
-  const _ImageHeader({required this.images});
+  const _ImageHeader({
+    required this.images,
+    required this.onSharePressed,
+  });
 
   final List<String> images;
+  final VoidCallback onSharePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -251,7 +263,7 @@ class _ImageHeader extends StatelessWidget {
           top: MediaQuery.of(context).padding.top + 8,
           child: _CircleIconButton(
             icon: Icons.share_outlined,
-            onPressed: () {},
+            onPressed: onSharePressed,
           ),
         ),
       ],

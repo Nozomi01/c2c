@@ -56,8 +56,14 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="sms" />
         </intent>
+        <!-- SENDTO: traditional mailto handlers -->
         <intent>
             <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+        <!-- VIEW: url_launcher uses ACTION_VIEW for mailto: (required for package visibility) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
             <data android:scheme="mailto" />
         </intent>
         <intent>

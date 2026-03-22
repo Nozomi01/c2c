@@ -2,6 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../config/app_links.dart';
+
+/// Same share flow as the service request screen: request URL + SMS / Mail / LINE / copy.
+Future<void> showServiceRequestShareSheet(
+  BuildContext context,
+  String serviceId,
+) async {
+  final url = AppLinks.serviceRequestShareUrl(serviceId);
+  final shareMessage = 'Wanty サービス依頼\n$url';
+  await showShareLinkBottomSheet(
+    context,
+    url: url,
+    shareMessage: shareMessage,
+    emailSubject: 'Wanty サービス依頼',
+  );
+}
+
 /// Bottom sheet: SMS, Mail, LINE, copy URL.
 Future<void> showShareLinkBottomSheet(
   BuildContext context, {
@@ -19,12 +36,12 @@ Future<void> showShareLinkBottomSheet(
     builder: (sheetContext) {
       return SafeArea(
         child: Padding(
-          padding: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
                 child: Text(
                   'リンクを共有',
                   style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
@@ -32,47 +49,59 @@ Future<void> showShareLinkBottomSheet(
                       ),
                 ),
               ),
-              ListTile(
-                leading: const Icon(Icons.sms_outlined),
-                title: const Text('SMS'),
-                onTap: () async {
-                  Navigator.of(sheetContext).pop();
-                  await _launchSms(context, shareMessage);
-                },
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _ShareSheetRowItem(
+                      icon: const Icon(Icons.sms_outlined, size: 28),
+                      label: 'SMS',
+                      onTap: () async {
+                        Navigator.of(sheetContext).pop();
+                        await _launchSms(context, shareMessage);
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: _ShareSheetRowItem(
+                      icon: const Icon(Icons.mail_outline, size: 28),
+                      label: 'メール',
+                      onTap: () async {
+                        Navigator.of(sheetContext).pop();
+                        await _launchMail(
+                          context,
+                          subject: emailSubject,
+                          body: shareMessage,
+                        );
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: _ShareSheetRowItem(
+                      icon: _lineLeadingIcon(size: 44),
+                      label: 'LINE',
+                      onTap: () async {
+                        Navigator.of(sheetContext).pop();
+                        await _launchLine(context, shareMessage);
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: _ShareSheetRowItem(
+                      icon: const Icon(Icons.link, size: 28),
+                      label: 'コピー',
+                      onTap: () async {
+                        Navigator.of(sheetContext).pop();
+                        await Clipboard.setData(ClipboardData(text: url));
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('コピーしました\n$url')),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-              ListTile(
-                leading: const Icon(Icons.mail_outline),
-                title: const Text('メール'),
-                onTap: () async {
-                  Navigator.of(sheetContext).pop();
-                  await _launchMail(
-                    context,
-                    subject: emailSubject,
-                    body: shareMessage,
-                  );
-                },
-              ),
-              ListTile(
-                leading: _lineLeadingIcon(),
-                title: const Text('LINE'),
-                onTap: () async {
-                  Navigator.of(sheetContext).pop();
-                  await _launchLine(context, shareMessage);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.link),
-                title: const Text('URLをコピー'),
-                onTap: () async {
-                  Navigator.of(sheetContext).pop();
-                  await Clipboard.setData(ClipboardData(text: url));
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('コピーしました\n$url')),
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -81,21 +110,68 @@ Future<void> showShareLinkBottomSheet(
   );
 }
 
-Widget _lineLeadingIcon() {
+/// One tap target in the horizontal share row (icon above label).
+class _ShareSheetRowItem extends StatelessWidget {
+  const _ShareSheetRowItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final Widget icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 44,
+                child: Center(child: icon),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Widget _lineLeadingIcon({double size = 40}) {
   return Container(
-    width: 40,
-    height: 40,
+    width: size,
+    height: size,
     decoration: BoxDecoration(
       color: const Color(0xFF06C755),
       borderRadius: BorderRadius.circular(8),
     ),
     alignment: Alignment.center,
-    child: const Text(
+    child: Text(
       'LINE',
       style: TextStyle(
         color: Colors.white,
         fontWeight: FontWeight.bold,
-        fontSize: 11,
+        fontSize: size > 42 ? 12 : 11,
       ),
     ),
   );
@@ -119,20 +195,60 @@ Future<void> _launchSms(BuildContext context, String body) async {
   }
 }
 
+/// Encodes mailto query params. Required for non-http(s) schemes — see
+/// https://pub.dev/packages/url_launcher#encoding-urls (Dart Uri + spaces / `+`).
+String _encodeMailtoQuery(Map<String, String> params) {
+  return params.entries
+      .map(
+        (e) =>
+            '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}',
+      )
+      .join('&');
+}
+
 Future<void> _launchMail(
   BuildContext context, {
   required String subject,
   required String body,
 }) async {
-  try {
-    // Prefer manual query encoding for mailto (see Dart Uri + non-http schemes).
-    final uri = Uri.parse(
-      'mailto:?subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}',
+  final query = _encodeMailtoQuery(<String, String>{
+    'subject': subject,
+    'body': body,
+  });
+  // No recipient: `mailto:?subject=...&body=...`
+  final uri = Uri.parse('mailto:?${query}');
+
+  Future<void> copyMailFallback() async {
+    final text = '件名: $subject\n\n$body';
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'メールアプリが見つかりませんでした。件名と本文をコピーしました。メールに貼り付けてご利用ください。',
+        ),
+        duration: Duration(seconds: 5),
+      ),
     );
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && context.mounted) {
+  }
+
+  try {
+    // Prefer externalApplication: matches ACTION_VIEW + mailto on Android.
+    var ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok) {
+      ok = await launchUrl(uri, mode: LaunchMode.platformDefault);
+    }
+    if (ok) return;
+    await copyMailFallback();
+  } on PlatformException catch (e) {
+    // ACTIVITY_NOT_FOUND: no handler, or (before manifest fix) visibility hid mail apps.
+    if (e.code == 'ACTIVITY_NOT_FOUND') {
+      await copyMailFallback();
+      return;
+    }
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('メールアプリを開けませんでした')),
+        SnackBar(content: Text('メールを開けませんでした: $e')),
       );
     }
   } catch (e) {
