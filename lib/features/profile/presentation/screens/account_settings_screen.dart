@@ -1,15 +1,19 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../providers/profile_mode_provider.dart';
 
-class AccountSettingsScreen extends StatelessWidget {
+class AccountSettingsScreen extends ConsumerWidget {
   const AccountSettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final user = FirebaseAuth.instance.currentUser;
+    final mode = ref.watch(profileModeProvider);
+    final modeNotifier = ref.read(profileModeProvider.notifier);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -39,6 +43,54 @@ class AccountSettingsScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 8),
+                  const Text(
+                    'マイページの表示',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '購入者向け・出品者向けのメニューと統計を切り替えます',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SegmentedButton<ProfileMode>(
+                    segments: const [
+                      ButtonSegment<ProfileMode>(
+                        value: ProfileMode.buyer,
+                        label: Text('購入者'),
+                        icon: Icon(Icons.shopping_bag_outlined, size: 18),
+                      ),
+                      ButtonSegment<ProfileMode>(
+                        value: ProfileMode.seller,
+                        label: Text('出品者'),
+                        icon: Icon(Icons.storefront_outlined, size: 18),
+                      ),
+                    ],
+                    selected: {mode},
+                    onSelectionChanged: (Set<ProfileMode> next) {
+                      if (next.isNotEmpty) {
+                        modeNotifier.setMode(next.first);
+                      }
+                    },
+                    showSelectedIcon: false,
+                    style: ButtonStyle(
+                      visualDensity: VisualDensity.comfortable,
+                      foregroundColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return AppColors.textPrimary;
+                        }
+                        return AppColors.textSecondary;
+                      }),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   _SettingsTile(
                     icon: Icons.person_outline,
                     label: 'プロフィール編集',
@@ -157,7 +209,7 @@ class _SettingsTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.border.withOpacity(0.5)),
+            border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
           ),
           child: Row(
             children: [

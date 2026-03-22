@@ -36,7 +36,6 @@ class MyPageScreen extends ConsumerWidget {
     final photoUrl = user?.photoURL;
     final uid = user?.uid;
     final mode = ref.watch(profileModeProvider);
-    final modeNotifier = ref.read(profileModeProvider.notifier);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -58,73 +57,33 @@ class MyPageScreen extends ConsumerWidget {
         elevation: 0,
         surfaceTintColor: Colors.white,
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: SegmentedButton<ProfileMode>(
-              segments: const [
-                ButtonSegment<ProfileMode>(
-                  value: ProfileMode.buyer,
-                  label: Text('購入者'),
-                  icon: Icon(Icons.shopping_bag_outlined, size: 18),
-                ),
-                ButtonSegment<ProfileMode>(
-                  value: ProfileMode.seller,
-                  label: Text('出品者'),
-                  icon: Icon(Icons.storefront_outlined, size: 18),
-                ),
-              ],
-              selected: {mode},
-              onSelectionChanged: (Set<ProfileMode> next) {
-                if (next.isNotEmpty) {
-                  modeNotifier.setMode(next.first);
-                }
-              },
-              showSelectedIcon: false,
-              style: ButtonStyle(
-                visualDensity: VisualDensity.comfortable,
-                foregroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return AppColors.textPrimary;
-                  }
-                  return AppColors.textSecondary;
-                }),
-              ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ProfileHeaderBlock(
+              uid: uid,
+              displayName: displayName,
+              photoUrl: photoUrl,
             ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ProfileHeaderBlock(
-                    uid: uid,
-                    displayName: displayName,
-                    photoUrl: photoUrl,
-                  ),
-                  if (mode == ProfileMode.seller) ...[
-                    const SizedBox(height: 24),
-                    _BalanceBlock(uid: uid),
-                    const SizedBox(height: 24),
-                  ] else
-                    const SizedBox(height: 24),
-                  if (mode == ProfileMode.buyer)
-                    _BuyerStatsRow(uid: uid)
-                  else
-                    _SellerStatsRow(uid: uid),
-                  const SizedBox(height: 24),
-                  if (mode == ProfileMode.buyer)
-                    _BuyerMenuList()
-                  else
-                    _SellerMenuList(),
-                ],
-              ),
-            ),
-          ),
-        ],
+            if (mode == ProfileMode.seller) ...[
+              const SizedBox(height: 24),
+              _BalanceBlock(uid: uid),
+              const SizedBox(height: 24),
+            ] else
+              const SizedBox(height: 24),
+            if (mode == ProfileMode.buyer)
+              _BuyerStatsRow(uid: uid)
+            else
+              _SellerStatsRow(uid: uid),
+            const SizedBox(height: 24),
+            if (mode == ProfileMode.buyer)
+              _BuyerMenuList()
+            else
+              _SellerMenuList(),
+          ],
+        ),
       ),
     );
   }
