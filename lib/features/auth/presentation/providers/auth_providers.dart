@@ -93,6 +93,45 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
       );
     }
   }
+
+  /// SMS確認後、ログインせず現在のアカウントに電話番号を紐付け／変更する。
+  Future<void> verifyCodeAndUpdatePhone(String smsCode) async {
+    if (state.verificationId == null) {
+      state = state.copyWith(errorMessage: '検証IDがありません。もう一度お試しください。');
+      return;
+    }
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _repo.linkOrUpdatePhoneWithSms(
+        verificationId: state.verificationId!,
+        smsCode: smsCode,
+      );
+      state = state.copyWith(isLoading: false);
+    } on FirebaseAuthException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _userFriendlyPhoneUpdateError(e),
+      );
+    }
+  }
+
+  void reset() {
+    state = const PhoneAuthState();
+  }
+}
+
+String _userFriendlyPhoneUpdateError(FirebaseAuthException e) {
+  final code = e.code.toLowerCase();
+  if (code.contains('credential-already-in-use')) {
+    return 'この電話番号は別のアカウントで使われています。';
+  }
+  if (code.contains('invalid-verification-code')) {
+    return '認証コードが正しくありません。';
+  }
+  if (code.contains('session-expired')) {
+    return '認証の有効期限が切れました。もう一度送信してください。';
+  }
+  return e.message ?? e.code;
 }
 
 final phoneAuthControllerProvider =

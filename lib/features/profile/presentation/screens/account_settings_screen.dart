@@ -1,17 +1,18 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../providers/profile_mode_provider.dart';
+import '../utils/account_login_method_ui.dart';
 
 class AccountSettingsScreen extends ConsumerWidget {
   const AccountSettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = ref.watch(authStateProvider).valueOrNull;
     final mode = ref.watch(profileModeProvider);
     final modeNotifier = ref.read(profileModeProvider.notifier);
 
@@ -37,12 +38,17 @@ class AccountSettingsScreen extends ConsumerWidget {
       ),
       body: user == null
           ? const Center(child: Text('ログインが必要です'))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
+          : Builder(
+              builder: (context) {
+                final linkedMethods =
+                    AccountLoginMethodUi.listFromFirebaseUser(user);
+                return SingleChildScrollView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
                   const Text(
                     'マイページの表示',
                     style: TextStyle(
@@ -97,32 +103,63 @@ class AccountSettingsScreen extends ConsumerWidget {
                     subtitle: '名前・アイコンを変更',
                     onTap: () => context.push('/settings/profile'),
                   ),
-                  const SizedBox(height: 8),
-                  _SettingsTile(
-                    icon: Icons.email_outlined,
-                    label: 'メールアドレス',
-                    subtitle: user.email ?? '未設定',
-                    onTap: () {
-                      // TODO: メール変更
-                    },
-                  ),
-                  const SizedBox(height: 8),
+                  if (linkedMethods.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    const Text(
+                      'ログイン連携',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'このアカウントに紐づいているログイン方法です。複数登録されている場合はいずれでもログインできます。',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    for (final entry in linkedMethods.asMap().entries) ...[
+                      if (entry.key > 0) const SizedBox(height: 8),
+                      _SettingsTile(
+                        icon: entry.value.icon,
+                        label: entry.value.isPrimary
+                            ? '${entry.value.label}（メイン）'
+                            : entry.value.label,
+                        subtitle: entry.value.subtitle,
+                        onTap: () {
+                          final m = entry.value;
+                          showDialog<void>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: Text(m.label),
+                              content: Text(
+                                m.isPrimary
+                                    ? '${m.infoMessage}\n\n※「メイン」はこのアカウントで主なログイン方法として扱われているものです。'
+                                    : m.infoMessage,
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text('閉じる'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                  ] else
+                    const SizedBox(height: 8),
                   _SettingsTile(
                     icon: Icons.phone_android_outlined,
                     label: '電話番号',
                     subtitle: user.phoneNumber ?? '未設定',
-                    onTap: () {
-                      // TODO: 電話番号変更
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  _SettingsTile(
-                    icon: Icons.lock_outline,
-                    label: 'パスワード変更',
-                    subtitle: '••••••••',
-                    onTap: () {
-                      // TODO: パスワード変更（メール/電話認証の場合の再設定）
-                    },
+                    onTap: () => context.push('/settings/phone'),
                   ),
                   const SizedBox(height: 32),
                   SizedBox(
@@ -147,7 +184,7 @@ class AccountSettingsScreen extends ConsumerWidget {
                           ),
                         );
                         if (ok == true && context.mounted) {
-                          await FirebaseAuth.instance.signOut();
+                          await ref.read(authRepositoryProvider).signOut();
                           if (context.mounted) context.go('/');
                         }
                       },
@@ -177,8 +214,10 @@ class AccountSettingsScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                ],
-              ),
+                    ],
+                  ),
+                );
+              },
             ),
     );
   }

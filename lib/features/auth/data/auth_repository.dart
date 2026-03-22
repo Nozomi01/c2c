@@ -26,6 +26,13 @@ abstract class AuthRepository {
     required String smsCode,
   });
 
+  /// Link phone to the current account (OAuth / email) or update phone (already phone user).
+  /// Syncs [users/{uid}.phoneNumber] in Firestore after success.
+  Future<void> linkOrUpdatePhoneWithSms({
+    required String verificationId,
+    required String smsCode,
+  });
+
   Future<UserCredential> signInWithApple();
   Future<UserCredential> signInWithGoogle();
   Future<UserCredential> signInWithLine();
@@ -74,6 +81,41 @@ class FirebaseAuthRepository implements AuthRepository {
       smsCode: smsCode,
     );
     return _auth.signInWithCredential(credential);
+  }
+
+  @override
+  Future<void> linkOrUpdatePhoneWithSms({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'ログインが必要です',
+      );
+    }
+    final credential = PhoneAuthProvider.credential(
+      verificationId: verificationId,
+      smsCode: smsCode,
+    );
+    if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty) {
+      await user.updatePhoneNumber(credential);
+    } else {
+      await user.linkWithCredential(credential);
+    }
+    await _auth.currentUser?.reload();
+    final phone = _auth.currentUser?.phoneNumber;
+    final uid = _auth.currentUser?.uid;
+    if (uid != null && phone != null && phone.isNotEmpty) {
+      await FirebaseFirestore.instance.collection('users').doc(uid).set(
+        {
+          'phoneNumber': phone,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+    }
   }
 
   @override

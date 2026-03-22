@@ -15,6 +15,7 @@ import '../../features/services/presentation/screens/category_service_list_scree
 import '../../features/chat/presentation/screens/chat_list_screen.dart';
 import '../../features/chat/presentation/screens/chat_thread_screen.dart';
 import '../../features/profile/presentation/screens/account_settings_screen.dart';
+import '../../features/profile/presentation/screens/phone_number_edit_screen.dart';
 import '../../features/profile/presentation/screens/about_service_screen.dart';
 import '../../features/profile/presentation/screens/drafts_list_screen.dart';
 import '../../features/profile/presentation/screens/help_contact_screen.dart';
@@ -230,6 +231,11 @@ final GoRouter _appRouter = GoRouter(
         path: '/settings/profile',
         name: 'profileEdit',
         builder: (context, state) => const ProfileEditScreen(),
+      ),
+      GoRoute(
+        path: '/settings/phone',
+        name: 'phoneNumberEdit',
+        builder: (context, state) => const PhoneNumberEditScreen(),
       ),
       GoRoute(
         path: '/settings/notifications',
