@@ -41,6 +41,12 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   DocumentSnapshot<Map<String, dynamic>>? _oldestDescDoc;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _latestSub;
 
+  /// True until we've aligned to bottom after the first history paint (handles snapshot merge).
+  bool _pendingInitialScrollToBottom = false;
+
+  /// User has scrolled away from the newest messages (reverse list: away from min offset).
+  bool _showJumpToLatest = false;
+
   @override
   void initState() {
     super.initState();
@@ -50,12 +56,31 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   }
 
   void _onScroll() {
-    if (!_hasMore || _loadingMore) return;
     if (!_scrollController.hasClients) return;
+    final double min;
+    final double max;
+    final double pixels;
+    try {
+      final pos = _scrollController.position;
+      if (!pos.hasContentDimensions) return;
+      // Extents can still throw briefly after [hasContentDimensions] (layout race).
+      min = pos.minScrollExtent;
+      max = pos.maxScrollExtent;
+      pixels = pos.pixels;
+    } catch (_) {
+      return;
+    }
 
-    // Because we display messages in chronological order (reverse: false),
-    // older messages are at the top. Trigger pagination when user scrolls near top.
-    if (_scrollController.position.pixels <= 200) {
+    // "Jump to latest" chip when user scrolled up (away from bottom / min offset).
+    final awayFromBottom = max > 0 && pixels > min + 120;
+    if (awayFromBottom != _showJumpToLatest) {
+      setState(() => _showJumpToLatest = awayFromBottom);
+    }
+
+    if (!_hasMore || _loadingMore) return;
+    // [ListView.reverse: true]: older messages toward [maxScrollExtent] (top).
+    if (max <= 0) return;
+    if (pixels >= max - 200) {
       _loadMoreMessages();
     }
   }
@@ -87,13 +112,10 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         _oldestDescDoc = docs.isNotEmpty ? docs.last : null; // oldest in this page
         _hasMore = docs.length == 20;
         _initialLoading = false;
+        _pendingInitialScrollToBottom = true;
       });
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_scrollController.hasClients) return;
-        // Jump to bottom (newest).
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      });
+      _jumpScrollToBottomAfterLayout();
     } catch (_) {
       if (!mounted) return;
       setState(() => _initialLoading = false);
@@ -127,6 +149,10 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
           ..clear()
           ..addAll(combined);
       });
+      if (_pendingInitialScrollToBottom && !_initialLoading) {
+        _jumpScrollToBottomAfterLayout();
+        _pendingInitialScrollToBottom = false;
+      }
     });
   }
 
@@ -136,9 +162,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     if (!_scrollController.hasClients) return;
 
     setState(() => _loadingMore = true);
-
-    // Track scroll extent so we can keep the visible messages stable.
-    final oldMaxScrollExtent = _scrollController.position.maxScrollExtent;
 
     try {
       final col = FirebaseFirestore.instance.collection('messages');
@@ -172,21 +195,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         _hasMore = docs.length == 20;
         _loadingMore = false;
       });
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_scrollController.hasClients) return;
-        final newMaxScrollExtent = _scrollController.position.maxScrollExtent;
-        final diff = newMaxScrollExtent - oldMaxScrollExtent;
-        final target = (_scrollController.offset + diff).clamp(
-          0.0,
-          _scrollController.position.maxScrollExtent,
-        );
-        _scrollController.animateTo(
-          target,
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
-        );
-      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _loadingMore = false);
@@ -202,15 +210,61 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     super.dispose();
   }
 
-  void _scrollToBottom() {
-    if (!_scrollController.hasClients) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
+  void _jumpToBottomExtentIfReady() {
+    if (!_scrollController.hasClients || !mounted) return;
+    try {
+      _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+    } catch (_) {
+      // [minScrollExtent] not ready (viewport / detach race) — safe to skip.
+    }
+  }
+
+  void _animateToBottomExtentIfReady() {
+    if (!_scrollController.hasClients || !mounted) return;
+    try {
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
+        _scrollController.position.minScrollExtent,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
       );
+    } catch (_) {
+      // Extent not ready yet.
+    }
+  }
+
+  /// Jumps to newest message after history loads ([ListView.reverse: true] → bottom = min extent).
+  void _jumpScrollToBottomAfterLayout() {
+    void jump() => _jumpToBottomExtentIfReady();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      jump();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        jump();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          jump();
+        });
+      });
+    });
+    Future<void>.delayed(const Duration(milliseconds: 50), jump);
+    Future<void>.delayed(const Duration(milliseconds: 180), jump);
+    Future<void>.delayed(const Duration(milliseconds: 400), jump);
+  }
+
+  /// Scrolls to newest message. Uses two frames so [ListView] reflects the new
+  /// row after Firestore updates `_messages` (listener runs after [sendMessage]).
+  void _scrollToBottom() {
+    void scroll() => _animateToBottomExtentIfReady();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      scroll();
+      // Second pass: layout usually updates on the next frame after snapshot.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        scroll();
+      });
+      // Firestore can arrive slightly later than two frames.
+      Future<void>.delayed(const Duration(milliseconds: 280), () {
+        _jumpToBottomExtentIfReady();
+      });
     });
   }
 
@@ -256,7 +310,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         children: [
           Expanded(
             child: _initialLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const _ChatHistoryLoadingPlaceholder()
                 : _messages.isEmpty
                     ? const Center(
                         child: Text(
@@ -276,14 +330,16 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                             children: [
                               ListView.builder(
                                 controller: _scrollController,
-                                reverse: false,
+                                reverse: true,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,
                                   vertical: 12,
                                 ),
                                 itemCount: chatItems.length,
                                 itemBuilder: (context, index) {
-                                  final item = chatItems[index];
+                                  // Chronological [chatItems] (oldest→newest); index 0 in builder = newest at bottom.
+                                  final item =
+                                      chatItems[chatItems.length - 1 - index];
                                   if (item is DateTime) {
                                     return _DayDivider(date: item);
                                   }
@@ -349,6 +405,54 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                               ),
                                             ),
                                           ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Jump to newest messages (when scrolled up in history).
+                              Positioned(
+                                right: 8,
+                                bottom: 8,
+                                child: AnimatedOpacity(
+                                  opacity: _showJumpToLatest ? 1 : 0,
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeOut,
+                                  child: IgnorePointer(
+                                    ignoring: !_showJumpToLatest,
+                                    child: Material(
+                                      elevation: 4,
+                                      shadowColor: Colors.black26,
+                                      borderRadius: BorderRadius.circular(24),
+                                      color: Colors.white,
+                                      child: InkWell(
+                                        onTap: () => _scrollToBottom(),
+                                        borderRadius: BorderRadius.circular(24),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 10,
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.keyboard_arrow_down_rounded,
+                                                size: 22,
+                                                color: AppColors.primary,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '最新へ',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppColors.primary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -644,6 +748,43 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       backgroundColor: Colors.white,
       elevation: 0,
       surfaceTintColor: Colors.white,
+    );
+  }
+}
+
+/// Bottom-aligned loading state (same region as newest messages) while history loads.
+class _ChatHistoryLoadingPlaceholder extends StatelessWidget {
+  const _ChatHistoryLoadingPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom + 28;
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(24, 0, 24, bottomPad),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'チャットを読み込み中…',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
