@@ -48,6 +48,31 @@ class _PaymentMethodScreenState extends ConsumerState<PaymentMethodScreen> {
       ),
       body: txAsync.when(
         data: (tx) {
+          final isProfileContract = tx.serviceId.startsWith('profile_contract_');
+          if (isProfileContract) {
+            final virtualService = Service(
+              id: tx.serviceId,
+              ownerId: tx.sellerId,
+              title: 'プロフィール契約',
+              description: 'プロフィールをもとにした契約',
+              category: 'プロフィール契約',
+              price: tx.price,
+              duration: 60,
+              location: 'オンライン / 相談',
+              onlineAvailable: true,
+              offlineAvailable: true,
+              createdAt: tx.createdAt,
+            );
+            return _Content(
+              transaction: tx,
+              service: virtualService,
+              selectedIndex: _selectedIndex,
+              onSelectIndex: (i) => setState(() => _selectedIndex = i),
+              onPay: () => _submitPayment(context, tx),
+              hasStripeSecret: widget.clientSecret != null && widget.clientSecret!.isNotEmpty,
+            );
+          }
+
           final serviceAsync = ref.watch(serviceDetailProvider(tx.serviceId));
           return serviceAsync.when(
             data: (service) => _Content(

@@ -23,15 +23,6 @@ class HomeShell extends StatelessWidget {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: navigationShell,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.go('/listings'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        shape: const CircleBorder(),
-        child: Icon(isIOS ? CupertinoIcons.add : AppIcons.add, size: 28),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: isIOS
           ? CupertinoTabBar(
               currentIndex: navigationShell.currentIndex,

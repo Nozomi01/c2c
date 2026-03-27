@@ -415,6 +415,9 @@ export const createEscrowPaymentIntent = onCall(
       currency = 'jpy',
       serviceId,
       sellerId,
+      requestId,
+      requestType,
+      requestTitle,
       // Optional: platform fee in smallest currency unit (e.g. JPY).
       // If omitted, fee is 0.
       applicationFeeAmount = 0.1,
@@ -456,11 +459,16 @@ export const createEscrowPaymentIntent = onCall(
           serviceId,
           buyerId,
           sellerId,
+          ...(requestId ? { requestId: String(requestId) } : {}),
+          ...(requestType ? { requestType: String(requestType) } : {}),
         },
       });
 
       const txRef = await db.collection('transactions').add({
         serviceId,
+        ...(requestId ? { requestId } : {}),
+        ...(requestType ? { requestType } : {}),
+        ...(requestTitle ? { requestTitle } : {}),
         buyerId,
         sellerId,
         sellerStripeAccountId,

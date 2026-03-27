@@ -149,7 +149,7 @@ final GoRouter _appRouter = GoRouter(
       GoRoute(
         path: '/create',
         name: 'create',
-        builder: (context, state) => const PeopleBoardScreen(),
+        redirect: (context, state) => '/listings',
       ),
       GoRoute(
         path: '/services/:id',
@@ -240,7 +240,7 @@ final GoRouter _appRouter = GoRouter(
       GoRoute(
         path: '/services/create',
         name: 'createService',
-        builder: (context, state) => const PeopleBoardScreen(),
+        redirect: (context, state) => '/listings',
       ),
       GoRoute(
         path: '/settings/account',

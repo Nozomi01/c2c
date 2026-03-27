@@ -369,7 +369,10 @@ class _TransactionDetailContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final serviceAsync = ref.watch(serviceDetailProvider(transaction.serviceId));
+    final isProfileContract = transaction.serviceId.startsWith('profile_contract_');
+    final serviceAsync = isProfileContract
+        ? AsyncValue<Service>.data(_virtualServiceFromTransaction(transaction))
+        : ref.watch(serviceDetailProvider(transaction.serviceId));
     final tabIndex = _tabIndexForStatus(transaction.status);
     final isBuyer = userId == transaction.buyerId;
     final isSeller = userId == transaction.sellerId;
@@ -394,7 +397,11 @@ class _TransactionDetailContent extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           serviceAsync.when(
-            data: (service) => _PurchasedItemCard(service: service, userId: userId),
+            data: (service) => _PurchasedItemCard(
+              service: service,
+              userId: userId,
+              isProfileContract: isProfileContract,
+            ),
             loading: () => const _PurchasedItemCardPlaceholder(),
             error: (_, __) => const _PurchasedItemCardPlaceholder(),
           ),
@@ -704,10 +711,15 @@ class _ProgressTabs extends StatelessWidget {
 }
 
 class _PurchasedItemCard extends StatelessWidget {
-  const _PurchasedItemCard({required this.service, required this.userId});
+  const _PurchasedItemCard({
+    required this.service,
+    required this.userId,
+    required this.isProfileContract,
+  });
 
   final Service service;
   final String userId;
+  final bool isProfileContract;
 
   @override
   Widget build(BuildContext context) {
@@ -776,46 +788,64 @@ class _PurchasedItemCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .doc(userId)
-                .snapshots(),
-            builder: (context, userSnap) {
-              final data = userSnap.data?.data() ?? <String, dynamic>{};
-              final raw = data['likedServiceIds'];
-              final likedIds =
-                  raw is List ? raw.whereType<String>().toSet() : <String>{};
-              final isLiked = likedIds.contains(service.id);
+          if (!isProfileContract) ...[
+            const SizedBox(width: 8),
+            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(userId)
+                  .snapshots(),
+              builder: (context, userSnap) {
+                final data = userSnap.data?.data() ?? <String, dynamic>{};
+                final raw = data['likedServiceIds'];
+                final likedIds =
+                    raw is List ? raw.whereType<String>().toSet() : <String>{};
+                final isLiked = likedIds.contains(service.id);
 
-              return IconButton(
-                tooltip: isLiked ? 'いいねを外す' : 'いいねする',
-                icon: Icon(
-                  isLiked ? AppIcons.favorite : AppIcons.favorite_border,
-                  size: 22,
-                  color: isLiked ? AppColors.primary : AppColors.textSecondary,
-                ),
-                onPressed: () async {
-                  await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(userId)
-                      .set(
-                    {
-                      'likedServiceIds': isLiked
-                          ? FieldValue.arrayRemove([service.id])
-                          : FieldValue.arrayUnion([service.id]),
-                    },
-                    SetOptions(merge: true),
-                  );
-                },
-              );
-            },
-          ),
+                return IconButton(
+                  tooltip: isLiked ? 'いいねを外す' : 'いいねする',
+                  icon: Icon(
+                    isLiked ? AppIcons.favorite : AppIcons.favorite_border,
+                    size: 22,
+                    color: isLiked ? AppColors.primary : AppColors.textSecondary,
+                  ),
+                  onPressed: () async {
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(userId)
+                        .set(
+                      {
+                        'likedServiceIds': isLiked
+                            ? FieldValue.arrayRemove([service.id])
+                            : FieldValue.arrayUnion([service.id]),
+                      },
+                      SetOptions(merge: true),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
         ],
       ),
     );
   }
+}
+
+Service _virtualServiceFromTransaction(TransactionModel tx) {
+  return Service(
+    id: tx.serviceId,
+    ownerId: tx.sellerId,
+    title: 'プロフィール契約',
+    description: 'プロフィールベースの契約取引',
+    category: 'プロフィール契約',
+    price: tx.price,
+    duration: 60,
+    location: tx.meetingLocation ?? 'オンライン / 相談',
+    onlineAvailable: true,
+    offlineAvailable: true,
+    createdAt: tx.createdAt,
+  );
 }
 
 class _PurchasedItemCardPlaceholder extends StatelessWidget {

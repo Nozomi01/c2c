@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
 import '../../../../core/ui/app_icons.dart';
+import '../../../chat/presentation/providers/chat_providers.dart';
 
 final sellerRequestDetailProvider =
     StreamProvider.family<DocumentSnapshot<Map<String, dynamic>>, String>(
@@ -111,11 +112,14 @@ class _SellerRequestDetailScreenState
           final buyerId = data['buyerId'] as String?;
           final isSeller = currentUid != null && sellerId == currentUid;
           final isBuyer = currentUid != null && buyerId == currentUid;
+          final counterpartId = currentUid == sellerId ? buyerId : sellerId;
           final serviceTitle = data['serviceTitle'] as String? ?? 'サービス';
           final buyerName = data['buyerName'] as String? ?? '購入者';
           final detail = data['detail'] as String? ?? '';
           final message = data['message'] as String? ?? '';
           final status = data['status'] as String? ?? 'requested';
+          final requestType = data['requestType'] as String? ?? 'service';
+          final isProfileContract = requestType == 'profileContract';
           final transactionId = data['transactionId'] as String?;
           final createdAt =
               (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
@@ -268,7 +272,8 @@ class _SellerRequestDetailScreenState
                         color: AppColors.textSecondary.withOpacity(0.9),
                       ),
                     ),
-                  ] else if ((status == 'paid' ||
+                  ] else if (!isProfileContract &&
+                      (status == 'paid' ||
                           status == 'inProgress' ||
                           status == 'completed') &&
                       transactionId != null &&
@@ -298,13 +303,13 @@ class _SellerRequestDetailScreenState
                         color: AppColors.textSecondary,
                       ),
                     ),
-                  ],
-                ] else if (isBuyer) ...[
-                  if (status == 'approved') ...[
+                  ] else if (isProfileContract && status == 'approved') ...[
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _paying ? null : () => _startPayment(data),
+                        onPressed: counterpartId == null
+                            ? null
+                            : () => _openChat(counterpartId),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
@@ -314,17 +319,86 @@ class _SellerRequestDetailScreenState
                             borderRadius: BorderRadius.circular(AppRadii.sm),
                           ),
                         ),
-                        child: Text(_paying ? '処理中...' : '支払いへ進む'),
+                        child: const Text('メッセージで契約調整する'),
                       ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      '※ 支払い完了後に取引が開始されます。',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
+                      '※ この依頼はプロフィール契約です。支払い前にチャットで条件を確定してください。',
+                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
                     ),
+                  ],
+                ] else if (isBuyer) ...[
+                  if (status == 'approved') ...[
+                    if (isProfileContract) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _paying ? null : () => _startPayment(data),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(AppRadii.sm),
+                                ),
+                              ),
+                              child: Text(_paying ? '処理中...' : '契約して支払いへ進む'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: (counterpartId == null || _processing)
+                                  ? null
+                                  : () => _openChat(counterpartId),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.textPrimary,
+                                side: const BorderSide(color: AppColors.border),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(AppRadii.sm),
+                                ),
+                              ),
+                              child: const Text('チャットで相談'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '※ プロフィール契約の金額で決済を開始します。必要なら先にチャットで条件調整してください。',
+                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                    ] else ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _paying ? null : () => _startPayment(data),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppRadii.sm),
+                            ),
+                          ),
+                          child: Text(_paying ? '処理中...' : '支払いへ進む'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '※ 支払い完了後に取引が開始されます。',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ] else if (status == 'paid' ||
                       status == 'inProgress' ||
                       status == 'completed') ...[
@@ -384,48 +458,86 @@ class _SellerRequestDetailScreenState
       ),
     );
   }
+
+  Future<void> _openChat(String otherId) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+    try {
+      final chatId =
+          await ref.read(chatRepositoryProvider).findOrCreateChat(userId, otherId);
+      if (!mounted) return;
+      context.push('/chats/$chatId');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('チャットを開けませんでした: $e')));
+    }
+  }
   
   Future<void> _startPayment(Map<String, dynamic> data) async {
     if (_paying) return;
+    final requestType = data['requestType'] as String? ?? 'service';
+    final isProfileContract = requestType == 'profileContract';
     final serviceId = data['serviceId'] as String?;
     final sellerId = data['sellerId'] as String?;
-    if (serviceId == null || sellerId == null) {
+    if (sellerId == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('サービス情報が不足しています。もう一度お試しください。')),
+        const SnackBar(content: Text('契約情報が不足しています。もう一度お試しください。')),
       );
       return;
     }
     setState(() => _paying = true);
     try {
-      final serviceSnap = await FirebaseFirestore.instance
-          .collection('services')
-          .doc(serviceId)
-          .get();
-      final sData = serviceSnap.data();
-      if (!serviceSnap.exists || sData == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('サービスが見つかりませんでした')),
-        );
-        return;
+      int? amount;
+      String effectiveServiceId;
+      if (isProfileContract) {
+        final rawRate = data['offeredHourlyRate'];
+        amount = rawRate is num ? rawRate.toInt() : null;
+        effectiveServiceId = 'profile_contract_${widget.requestId}';
+      } else {
+        if (serviceId == null || serviceId.isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('サービス情報が不足しています。もう一度お試しください。')),
+          );
+          return;
+        }
+        final serviceSnap = await FirebaseFirestore.instance
+            .collection('services')
+            .doc(serviceId)
+            .get();
+        final sData = serviceSnap.data();
+        if (!serviceSnap.exists || sData == null) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('サービスが見つかりませんでした')),
+          );
+          return;
+        }
+        final rawPrice = sData['price'];
+        amount = (rawPrice is num) ? rawPrice.toInt() : null;
+        effectiveServiceId = serviceId;
       }
-      final rawPrice = sData['price'];
-      final amount = (rawPrice is num) ? rawPrice.toInt() : null;
       if (amount == null || amount <= 0) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('価格情報が無効です')),
+          const SnackBar(content: Text('契約金額が無効です')),
         );
         return;
       }
 
       final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
-      final result = await functions.httpsCallable('createEscrowPaymentIntent').call({
+      final result = await functions
+          .httpsCallable('createEscrowPaymentIntent')
+          .call(<String, dynamic>{
         'amount': amount,
         'currency': 'jpy',
-        'serviceId': serviceId,
+        'serviceId': effectiveServiceId,
         'sellerId': sellerId,
+        'requestId': widget.requestId,
+        'requestType': requestType,
+        'requestTitle': (data['serviceTitle'] as String?) ?? 'プロフィール契約',
       });
       final resData = result.data as Map<String, dynamic>?;
       final txId = resData?['transactionId'] as String?;
@@ -440,7 +552,9 @@ class _SellerRequestDetailScreenState
 
       // Notify seller that buyer started payment from this service request.
       try {
-        await functions.httpsCallable('sendUserNotification').call({
+        await functions
+            .httpsCallable('sendUserNotification')
+            .call(<String, dynamic>{
           'userId': sellerId,
           'title': '新しい購入手続きが開始されました',
           'body': '購入者が支払いを開始しました。決済完了後、サービス提供をお願いします。',

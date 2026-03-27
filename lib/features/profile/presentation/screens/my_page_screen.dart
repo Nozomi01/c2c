@@ -348,15 +348,49 @@ class _BuyerStatsRow extends StatelessWidget {
                 : FirebaseFirestore.instance
                     .collection('transactions')
                     .where('buyerId', isEqualTo: uid)
-                    .where('status', whereIn: ['pending', 'paid', 'inProgress'])
                     .snapshots(),
             builder: (context, snapshot) {
-              final count = snapshot.data?.docs.length ?? 0;
-              return _StatCard(
-                icon: AppIcons.inventory_2_outlined,
-                label: '取引中',
-                count: count,
-                onTap: () => context.push('/mypage/transactions'),
+              final txCount = (snapshot.data?.docs ?? const []).where((d) {
+                final status = (d.data()['status'] as String?)?.trim().toLowerCase();
+                return status != null &&
+                    status.isNotEmpty &&
+                    status != 'completed' &&
+                    status != 'reviewed' &&
+                    status != 'failed' &&
+                    status != 'cancelled' &&
+                    status != 'canceled';
+              }).length;
+              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: uid == null
+                    ? const Stream.empty()
+                    : FirebaseFirestore.instance
+                        .collection('serviceRequests')
+                        .where('buyerId', isEqualTo: uid)
+                        .snapshots(),
+                builder: (context, requestSnap) {
+                  final pendingRequestCount = (requestSnap.data?.docs ?? const [])
+                      .where((d) {
+                        final data = d.data();
+                        final status = (data['status'] as String?)?.trim().toLowerCase();
+                        if (status == null ||
+                            status.isEmpty ||
+                            status == 'rejected' ||
+                            status == 'completed' ||
+                            status == 'cancelled' ||
+                            status == 'canceled') {
+                          return false;
+                        }
+                        final txId = d.data()['transactionId'] as String?;
+                        return txId == null || txId.isEmpty;
+                      })
+                      .length;
+                  return _StatCard(
+                    icon: AppIcons.inventory_2_outlined,
+                    label: '取引中',
+                    count: txCount + pendingRequestCount,
+                    onTap: () => context.push('/mypage/transactions'),
+                  );
+                },
               );
             },
           ),
@@ -377,7 +411,7 @@ class _BuyerStatsRow extends StatelessWidget {
                 icon: AppIcons.check_circle_outline,
                 label: '完了',
                 count: count,
-                onTap: () => context.push('/mypage/transactions'),
+                onTap: () => context.push('/mypage/completed'),
               );
             },
           ),
@@ -424,15 +458,49 @@ class _SellerStatsRow extends StatelessWidget {
                 : FirebaseFirestore.instance
                     .collection('transactions')
                     .where('sellerId', isEqualTo: uid)
-                    .where('status', whereIn: ['pending', 'paid', 'inProgress'])
                     .snapshots(),
             builder: (context, snapshot) {
-              final count = snapshot.data?.docs.length ?? 0;
-              return _StatCard(
-                icon: AppIcons.inventory_2_outlined,
-                label: '取引中',
-                count: count,
-                onTap: () => context.push('/mypage/transactions'),
+              final txCount = (snapshot.data?.docs ?? const []).where((d) {
+                final status = (d.data()['status'] as String?)?.trim().toLowerCase();
+                return status != null &&
+                    status.isNotEmpty &&
+                    status != 'completed' &&
+                    status != 'reviewed' &&
+                    status != 'failed' &&
+                    status != 'cancelled' &&
+                    status != 'canceled';
+              }).length;
+              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: uid == null
+                    ? const Stream.empty()
+                    : FirebaseFirestore.instance
+                        .collection('serviceRequests')
+                        .where('sellerId', isEqualTo: uid)
+                        .snapshots(),
+                builder: (context, requestSnap) {
+                  final pendingRequestCount = (requestSnap.data?.docs ?? const [])
+                      .where((d) {
+                        final data = d.data();
+                        final status = (data['status'] as String?)?.trim().toLowerCase();
+                        if (status == null ||
+                            status.isEmpty ||
+                            status == 'rejected' ||
+                            status == 'completed' ||
+                            status == 'cancelled' ||
+                            status == 'canceled') {
+                          return false;
+                        }
+                        final txId = d.data()['transactionId'] as String?;
+                        return txId == null || txId.isEmpty;
+                      })
+                      .length;
+                  return _StatCard(
+                    icon: AppIcons.inventory_2_outlined,
+                    label: '取引中',
+                    count: txCount + pendingRequestCount,
+                    onTap: () => context.push('/mypage/transactions'),
+                  );
+                },
               );
             },
           ),

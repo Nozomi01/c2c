@@ -263,6 +263,7 @@ class _AdvancedSearchSheet extends StatefulWidget {
 }
 
 class _AdvancedSearchSheetState extends State<_AdvancedSearchSheet> {
+  late String? _category;
   late String? _gender;
   late int? _minRate;
   late int? _maxRate;
@@ -285,10 +286,20 @@ class _AdvancedSearchSheetState extends State<_AdvancedSearchSheet> {
     _RateOption(10000, '¥10,000'),
     _RateOption(15000, '¥15,000'),
   ];
+  static const _categoryOptions = [
+    _CategoryOption(null, '指定なし'),
+    _CategoryOption('トーク・雑談', 'トーク・雑談'),
+    _CategoryOption('相談・アドバイス', '相談・アドバイス'),
+    _CategoryOption('カフェ・ご飯', 'カフェ・ご飯'),
+    _CategoryOption('趣味・遊び', '趣味・遊び'),
+    _CategoryOption('お出かけ・同行', 'お出かけ・同行'),
+    _CategoryOption('その他', 'その他'),
+  ];
 
   @override
   void initState() {
     super.initState();
+    _category = widget.initial.category;
     _gender = widget.initial.gender;
     _minRate = widget.initial.minHourlyRate;
     _maxRate = widget.initial.maxHourlyRate;
@@ -321,6 +332,18 @@ class _AdvancedSearchSheetState extends State<_AdvancedSearchSheet> {
             const Text(
               '高度な検索',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const Text('カテゴリ', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            DropdownFlutter<_CategoryOption>(
+              hintText: 'カテゴリ',
+              items: _categoryOptions,
+              initialItem: _categoryOptions.firstWhere(
+                (e) => e.value == _category,
+                orElse: () => _categoryOptions.first,
+              ),
+              onChanged: (v) => setState(() => _category = v?.value),
             ),
             const SizedBox(height: AppSpacing.md),
             const Text('性別', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -427,6 +450,7 @@ class _AdvancedSearchSheetState extends State<_AdvancedSearchSheet> {
                     onPressed: () {
                       Navigator.of(context).pop(
                         _AdvancedSearchFilter(
+                          category: _category,
                           gender: _gender,
                           minHourlyRate: _minRate,
                           maxHourlyRate: _maxRate,
@@ -478,6 +502,7 @@ class _ChoiceChip extends StatelessWidget {
 
 class _AdvancedSearchFilter {
   const _AdvancedSearchFilter({
+    this.category,
     this.gender,
     this.minHourlyRate,
     this.maxHourlyRate,
@@ -486,6 +511,7 @@ class _AdvancedSearchFilter {
     this.availabilityKeyword = '',
   });
 
+  final String? category;
   final String? gender;
   final int? minHourlyRate;
   final int? maxHourlyRate;
@@ -494,6 +520,7 @@ class _AdvancedSearchFilter {
   final String availabilityKeyword;
 
   bool get hasAnyFilter =>
+      category != null ||
       gender != null ||
       minHourlyRate != null ||
       maxHourlyRate != null ||
@@ -502,6 +529,10 @@ class _AdvancedSearchFilter {
       availabilityKeyword.trim().isNotEmpty;
 
   bool matches(_PersonCardData card) {
+    if (category != null && category!.isNotEmpty) {
+      final target = category!.trim();
+      if (card.categoryLabel.trim() != target) return false;
+    }
     final rate = card.hourlyRate;
     if (onlyWithHourlyRate && rate == null) return false;
     if (minHourlyRate != null && (rate == null || rate < minHourlyRate!)) return false;
@@ -525,6 +556,15 @@ class _AdvancedSearchFilter {
 class _RateOption {
   const _RateOption(this.value, this.label);
   final int? value;
+  final String label;
+
+  @override
+  String toString() => label;
+}
+
+class _CategoryOption {
+  const _CategoryOption(this.value, this.label);
+  final String? value;
   final String label;
 
   @override

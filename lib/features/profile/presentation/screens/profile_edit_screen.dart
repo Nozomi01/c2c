@@ -33,11 +33,20 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   late final TextEditingController _availabilityController;
   late final TextEditingController _experienceYearsController;
   String _gender = 'unspecified';
+  String _category = '趣味・遊び';
   static const _genderOptions = [
     _GenderOption('unspecified', '未設定'),
     _GenderOption('male', '男性'),
     _GenderOption('female', '女性'),
     _GenderOption('other', 'その他'),
+  ];
+  static const _categoryOptions = [
+    _CategoryOption('トーク・雑談'),
+    _CategoryOption('相談・アドバイス'),
+    _CategoryOption('カフェ・ご飯'),
+    _CategoryOption('趣味・遊び'),
+    _CategoryOption('お出かけ・同行'),
+    _CategoryOption('その他'),
   ];
 
   Uint8List? _avatarBytes;
@@ -94,6 +103,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         final g = data['gender'] as String?;
         if (g != null && g.isNotEmpty) {
           _gender = g;
+        }
+        final category = data['category'] as String?;
+        if (category != null &&
+            _categoryOptions.any((e) => e.value == category)) {
+          _category = category;
         }
       }
     } catch (_) {}
@@ -311,6 +325,26 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
+                        IgnorePointer(
+                          ignoring: _saving,
+                          child: Opacity(
+                            opacity: _saving ? 0.6 : 1,
+                            child: DropdownFlutter<_CategoryOption>(
+                              hintText: '活動カテゴリ',
+                              items: _categoryOptions,
+                              initialItem: _categoryOptions.firstWhere(
+                                (e) => e.value == _category,
+                                orElse: () => _categoryOptions.first,
+                              ),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setState(() => _category = v.value);
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         TextFormField(
                           controller: _locationController,
                           decoration: const InputDecoration(
@@ -439,6 +473,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               'birthDate': birthDate.isEmpty ? null : birthDate,
               'phoneNumber': phoneNumber.isEmpty ? null : phoneNumber,
               'gender': _gender == 'unspecified' ? null : _gender,
+              'category': _category,
               'location': location.isEmpty ? null : location,
               'skills': skills.isEmpty ? null : skills,
               'languages': languages.isEmpty ? null : languages,
@@ -474,4 +509,12 @@ class _GenderOption {
 
   @override
   String toString() => label;
+}
+
+class _CategoryOption {
+  const _CategoryOption(this.value);
+  final String value;
+
+  @override
+  String toString() => value;
 }

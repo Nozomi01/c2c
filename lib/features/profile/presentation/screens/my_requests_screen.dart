@@ -71,6 +71,7 @@ class MyRequestsScreen extends ConsumerWidget {
               final title =
                   (data['serviceTitle'] as String?) ?? 'サービス';
               final status = (data['status'] as String?) ?? 'requested';
+              final transactionId = data['transactionId'] as String?;
               final createdAt =
                   (data['createdAt'] as Timestamp?)?.toDate() ??
                       DateTime.now();
@@ -107,6 +108,12 @@ class MyRequestsScreen extends ConsumerWidget {
                 trailing: const Icon(AppIcons.chevron_right,
                     size: 20, color: AppColors.textSecondary),
                 onTap: () {
+                  if (status == 'approved') {
+                    if (transactionId != null && transactionId.isNotEmpty) {
+                      context.push('/transactions/$transactionId');
+                      return;
+                    }
+                  }
                   context.push('/seller/requests/${doc.id}');
                 },
               );

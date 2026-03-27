@@ -75,7 +75,10 @@ class _Content extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final serviceAsync = ref.watch(serviceDetailProvider(transaction.serviceId));
+    final isProfileContract = transaction.serviceId.startsWith('profile_contract_');
+    final serviceAsync = isProfileContract
+        ? AsyncValue<Service>.data(_virtualServiceFromTransaction(transaction))
+        : ref.watch(serviceDetailProvider(transaction.serviceId));
     final dateFormat = DateFormat('yyyy年M月d日 HH:mm');
     final purchaseDate = dateFormat.format(transaction.createdAt);
     final receiptDate = transaction.meetingDate != null
@@ -231,6 +234,22 @@ class _Content extends ConsumerWidget {
       }
     }
   }
+}
+
+Service _virtualServiceFromTransaction(TransactionModel tx) {
+  return Service(
+    id: tx.serviceId,
+    ownerId: tx.sellerId,
+    title: 'プロフィール契約',
+    description: 'プロフィールベースの契約取引',
+    category: 'プロフィール契約',
+    price: tx.price,
+    duration: 60,
+    location: tx.meetingLocation ?? 'オンライン / 相談',
+    onlineAvailable: true,
+    offlineAvailable: true,
+    createdAt: tx.createdAt,
+  );
 }
 
 class _ProductCard extends StatelessWidget {
