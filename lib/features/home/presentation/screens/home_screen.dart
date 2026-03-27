@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
@@ -206,33 +208,162 @@ class _NotificationButton extends ConsumerWidget {
   }
 }
 
-class _PromoBanner extends StatelessWidget {
+class _PromoBanner extends StatefulWidget {
   const _PromoBanner();
+
+  @override
+  State<_PromoBanner> createState() => _PromoBannerState();
+}
+
+class _PromoBannerState extends State<_PromoBanner> {
+  static const _banners = [
+    _BannerItem(
+      imagePath: 'assets/images/logo_text.png',
+      title: 'まずは気軽に話してみよう',
+      subtitle: '今すぐ相談できる相手を見つける',
+    ),
+    _BannerItem(
+      imagePath: 'assets/images/logo.png',
+      title: 'あなたの得意を出品しよう',
+      subtitle: '時給を設定して掲示板で募集',
+    ),
+    _BannerItem(
+      imagePath: 'assets/images/phone.png',
+      title: 'スマホだけでかんたんスタート',
+      subtitle: 'プロフィールを作ってすぐ始める',
+    ),
+  ];
+
+  late final PageController _pageController;
+  Timer? _timer;
+  int _current = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 1);
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_pageController.hasClients) return;
+      final next = (_current + 1) % _banners.length;
+      _pageController.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 72,
+      height: 150,
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppRadii.sm),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: ['VA', 'OKANE', 'RK LLC', 'ISO', 'K'].map((label) {
-          return Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
+      child: Column(
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              child: PageView.builder(
+                controller: _pageController,
+                itemCount: _banners.length,
+                onPageChanged: (index) {
+                  if (_current != index) {
+                    setState(() => _current = index);
+                  }
+                },
+                itemBuilder: (context, index) {
+                  final banner = _banners[index];
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        banner.imagePath,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: const Color(0xFFE9ECF2),
+                        ),
+                      ),
+                      Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [Color(0xAA000000), Color(0x22000000)],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        bottom: 12,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              banner.title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              banner.subtitle,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
-          );
-        }).toList(),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_banners.length, (index) {
+              final selected = index == _current;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: selected ? 14 : 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.textPrimary : const Color(0xFFD5D9E1),
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
+                ),
+              );
+            }),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _BannerItem {
+  const _BannerItem({
+    required this.imagePath,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String imagePath;
+  final String title;
+  final String subtitle;
 }
 
 class _SectionHeader extends StatelessWidget {
