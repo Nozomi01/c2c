@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 
 class StripeAccountScreen extends ConsumerStatefulWidget {
   const StripeAccountScreen({super.key});
@@ -187,7 +188,7 @@ class _StripeAccountScreenState extends ConsumerState<StripeAccountScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(AppIcons.arrow_back),
           onPressed: () => context.pop(),
         ),
         title: const Text(
@@ -204,7 +205,7 @@ class _StripeAccountScreenState extends ConsumerState<StripeAccountScreen> {
         surfaceTintColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -213,11 +214,11 @@ class _StripeAccountScreenState extends ConsumerState<StripeAccountScreen> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: AppColors.primarySoft,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadii.md),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.account_balance_wallet, size: 40, color: AppColors.primary),
+                  Icon(AppIcons.account_balance_wallet, size: 40, color: AppColors.primary),
                   const SizedBox(width: 16),
                   const Expanded(
                     child: Text(
@@ -258,7 +259,7 @@ class _StripeAccountScreenState extends ConsumerState<StripeAccountScreen> {
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
                   ),
                 ),
                 child: _loading

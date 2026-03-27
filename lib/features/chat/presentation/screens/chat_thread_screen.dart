@@ -13,6 +13,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../data/chat_repository.dart';
 import '../../domain/models/message.dart';
 import '../providers/chat_providers.dart';
@@ -332,7 +333,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                 controller: _scrollController,
                                 reverse: true,
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
+                                  horizontal: AppSpacing.listHorizontal,
                                   vertical: 12,
                                 ),
                                 itemCount: chatItems.length,
@@ -422,13 +423,12 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                   child: IgnorePointer(
                                     ignoring: !_showJumpToLatest,
                                     child: Material(
-                                      elevation: 4,
-                                      shadowColor: Colors.black26,
-                                      borderRadius: BorderRadius.circular(24),
+                                      elevation: 0,
+                                      borderRadius: BorderRadius.circular(AppRadii.xxl),
                                       color: Colors.white,
                                       child: InkWell(
                                         onTap: () => _scrollToBottom(),
-                                        borderRadius: BorderRadius.circular(24),
+                                        borderRadius: BorderRadius.circular(AppRadii.xxl),
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 14,
@@ -438,7 +438,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(
-                                                Icons.keyboard_arrow_down_rounded,
+                                                AppIcons.keyboard_arrow_down_rounded,
                                                 size: 22,
                                                 color: AppColors.primary,
                                               ),
@@ -473,13 +473,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
             ),
             decoration: const BoxDecoration(
               color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 4,
-                  offset: Offset(0, -2),
-                ),
-              ],
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -488,14 +481,14 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   onPressed: _sendingAttachment
                       ? null
                       : () => _pickAndSendImage(repo, user.uid),
-                  icon: const Icon(Icons.photo_outlined),
+                  icon: const Icon(AppIcons.photo_outlined),
                   color: AppColors.textSecondary,
                 ),
                 IconButton(
                   onPressed: _sendingAttachment
                       ? null
                       : () => _pickAndSendFile(repo, user.uid),
-                  icon: const Icon(Icons.attach_file),
+                  icon: const Icon(AppIcons.attach_file),
                   color: AppColors.textSecondary,
                 ),
                 Expanded(
@@ -508,11 +501,11 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                       filled: true,
                       fillColor: AppColors.background,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(AppRadii.xxl),
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
+                        horizontal: AppSpacing.listHorizontal,
                         vertical: 12,
                       ),
                     ),
@@ -522,7 +515,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                 const SizedBox(width: 8),
                 IconButton.filled(
                   onPressed: () => _send(repo, user.uid),
-                  icon: const Icon(Icons.send),
+                  icon: const Icon(AppIcons.send),
                   style: IconButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -740,7 +733,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
 
     return AppBar(
       leading: IconButton(
-        icon: const Icon(Icons.chevron_left),
+        icon: const Icon(AppIcons.chevron_left),
         onPressed: () => context.pop(),
       ),
       title: titleWidget,
@@ -867,10 +860,14 @@ class _MessageBubble extends StatelessWidget {
               decoration: BoxDecoration(
                 color: isMine ? AppColors.primary : Colors.grey.shade200,
                 borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: Radius.circular(isMine ? 18 : 4),
-                  bottomRight: Radius.circular(isMine ? 4 : 18),
+                  topLeft: const Radius.circular(AppRadii.xlSoft),
+                  topRight: const Radius.circular(AppRadii.xlSoft),
+                  bottomLeft: Radius.circular(
+                    isMine ? AppRadii.xlSoft : AppRadii.xxs * 2,
+                  ),
+                  bottomRight: Radius.circular(
+                    isMine ? AppRadii.xxs * 2 : AppRadii.xlSoft,
+                  ),
                 ),
               ),
               child: Row(
@@ -889,7 +886,7 @@ class _MessageBubble extends StatelessWidget {
                               _showFullScreenImage(context, message.image!);
                             },
                             child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(AppRadii.md),
                               child: AspectRatio(
                                 aspectRatio: 4 / 3,
                                 child: Image.network(
@@ -916,7 +913,7 @@ class _MessageBubble extends StatelessWidget {
                   if (isMine) ...[
                     const SizedBox(width: 6),
                     Icon(
-                      message.isRead ? Icons.done_all : Icons.done,
+                      message.isRead ? AppIcons.done_all : AppIcons.done,
                       size: 14,
                       color: message.isRead ? Colors.white70 : Colors.white,
                     ),
@@ -964,7 +961,7 @@ class _MessageBubble extends StatelessWidget {
                     top: 8,
                     right: 8,
                     child: IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
+                      icon: const Icon(AppIcons.close, color: Colors.white),
                       onPressed: () => Navigator.of(ctx).pop(),
                     ),
                   ),

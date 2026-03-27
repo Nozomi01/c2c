@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../providers/profile_mode_provider.dart';
 
 Widget _avatarPlaceholder(String displayName, double size) {
@@ -41,7 +42,7 @@ class MyPageScreen extends ConsumerWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(AppIcons.chevron_left),
           onPressed: () => context.go('/home'),
         ),
         title: const Text(
@@ -58,7 +59,7 @@ class MyPageScreen extends ConsumerWidget {
         surfaceTintColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -116,6 +117,9 @@ class _ProfileHeaderBlock extends StatelessWidget {
         final ratingRaw = data['rating'];
         final reviewCountRaw = data['reviewCount'];
         final verifiedRaw = data['isVerified'] ?? data['verified'] ?? data['identityVerified'];
+        final bio = (data['bio'] as String?)?.trim() ?? '';
+        final hourlyRateRaw = data['hourlyRate'];
+        final hourlyRate = hourlyRateRaw is num ? hourlyRateRaw.toInt() : null;
 
         final rating = ratingRaw is num ? ratingRaw.toDouble() : 0.0;
         final reviewCount = reviewCountRaw is num ? reviewCountRaw.toInt() : 0;
@@ -127,7 +131,7 @@ class _ProfileHeaderBlock extends StatelessWidget {
 
         return InkWell(
           onTap: () => context.push('/settings/profile'),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadii.md),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Row(
@@ -164,7 +168,7 @@ class _ProfileHeaderBlock extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
+                          Icon(AppIcons.chevron_right, size: 20, color: AppColors.textSecondary),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -173,11 +177,11 @@ class _ProfileHeaderBlock extends StatelessWidget {
                           ...List.generate(5, (i) {
                             IconData icon;
                             if (i < full) {
-                              icon = Icons.star;
+                              icon = AppIcons.star;
                             } else if (i == full && hasHalf) {
-                              icon = Icons.star_half;
+                              icon = AppIcons.star_half;
                             } else {
-                              icon = Icons.star_border;
+                              icon = AppIcons.star_border;
                             }
                             return Icon(
                               icon,
@@ -195,7 +199,7 @@ class _ProfileHeaderBlock extends StatelessWidget {
                           ),
                           if (verified) ...[
                             const SizedBox(width: 12),
-                            const Icon(Icons.verified, size: 18, color: AppColors.success),
+                            const Icon(AppIcons.verified, size: 18, color: AppColors.success),
                             const SizedBox(width: 4),
                             Text(
                               '本人確認済',
@@ -208,6 +212,28 @@ class _ProfileHeaderBlock extends StatelessWidget {
                           ],
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      if (hourlyRate != null)
+                        Text(
+                          '¥$hourlyRate / 時間',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      if (bio.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          bio,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -274,7 +300,7 @@ class _BalanceBlock extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.border),
                 foregroundColor: AppColors.textPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.md),
               ),
               child: const Text('売上を出金'),
             ),
@@ -306,7 +332,7 @@ class _BuyerStatsRow extends StatelessWidget {
             builder: (context, snapshot) {
               final count = snapshot.data?.docs.length ?? 0;
               return _StatCard(
-                icon: Icons.assignment_outlined,
+                icon: AppIcons.assignment_outlined,
                 label: '申し込み中',
                 count: count,
                 onTap: () => context.push('/mypage/requests'),
@@ -327,7 +353,7 @@ class _BuyerStatsRow extends StatelessWidget {
             builder: (context, snapshot) {
               final count = snapshot.data?.docs.length ?? 0;
               return _StatCard(
-                icon: Icons.inventory_2_outlined,
+                icon: AppIcons.inventory_2_outlined,
                 label: '取引中',
                 count: count,
                 onTap: () => context.push('/mypage/transactions'),
@@ -348,7 +374,7 @@ class _BuyerStatsRow extends StatelessWidget {
             builder: (context, snapshot) {
               final count = snapshot.data?.docs.length ?? 0;
               return _StatCard(
-                icon: Icons.check_circle_outline,
+                icon: AppIcons.check_circle_outline,
                 label: '完了',
                 count: count,
                 onTap: () => context.push('/mypage/transactions'),
@@ -382,7 +408,7 @@ class _SellerStatsRow extends StatelessWidget {
             builder: (context, snapshot) {
               final count = snapshot.data?.docs.length ?? 0;
               return _StatCard(
-                icon: Icons.mark_email_unread_outlined,
+                icon: AppIcons.mark_email_unread_outlined,
                 label: '新規依頼',
                 count: count,
                 onTap: () => context.push('/seller/requests'),
@@ -403,7 +429,7 @@ class _SellerStatsRow extends StatelessWidget {
             builder: (context, snapshot) {
               final count = snapshot.data?.docs.length ?? 0;
               return _StatCard(
-                icon: Icons.inventory_2_outlined,
+                icon: AppIcons.inventory_2_outlined,
                 label: '取引中',
                 count: count,
                 onTap: () => context.push('/mypage/transactions'),
@@ -424,7 +450,7 @@ class _SellerStatsRow extends StatelessWidget {
             builder: (context, snapshot) {
               final count = snapshot.data?.docs.length ?? 0;
               return _StatCard(
-                icon: Icons.check_circle_outline,
+                icon: AppIcons.check_circle_outline,
                 label: '完了',
                 count: count,
                 onTap: () => context.push('/mypage/completed'),
@@ -445,31 +471,31 @@ class _BuyerMenuList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _MenuTile(
-          icon: Icons.settings,
+          icon: AppIcons.settings,
           label: 'アカウント設定',
           onTap: () => context.push('/settings/account'),
         ),
         const SizedBox(height: 8),
         _MenuTile(
-          icon: Icons.favorite_border,
+          icon: AppIcons.favorite_border,
           label: 'いいねリスト',
           onTap: () => context.push('/mypage/likes'),
         ),
         const SizedBox(height: 8),
         _MenuTile(
-          icon: Icons.notifications_outlined,
+          icon: AppIcons.notifications_outlined,
           label: '通知設定',
           onTap: () => context.push('/settings/notifications'),
         ),
         const SizedBox(height: 8),
         _MenuTile(
-          icon: Icons.verified_user_outlined,
+          icon: AppIcons.verified_user_outlined,
           label: '本人確認',
           onTap: () => context.push('/settings/identity'),
         ),
         const SizedBox(height: 8),
         _MenuTile(
-          icon: Icons.help_outline,
+          icon: AppIcons.help_outline,
           label: 'ヘルプ/お問い合わせ',
           onTap: () => context.push('/help'),
         ),
@@ -486,43 +512,43 @@ class _SellerMenuList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _MenuTile(
-          icon: Icons.settings,
+          icon: AppIcons.settings,
           label: 'アカウント設定',
           onTap: () => context.push('/settings/account'),
         ),
         const SizedBox(height: 8),
         _MenuTile(
-          icon: Icons.grid_view_outlined,
+          icon: AppIcons.grid_view_outlined,
           label: '出品一覧',
           onTap: () => context.push('/mypage/listings'),
         ),
         const SizedBox(height: 8),
         _MenuTile(
-          icon: Icons.account_balance_wallet_outlined,
+          icon: AppIcons.account_balance_wallet_outlined,
           label: 'Stripeアカウント連携',
           onTap: () => context.push('/mypage/stripe'),
         ),
         const SizedBox(height: 8),
         _MenuTile(
-          icon: Icons.favorite_border,
+          icon: AppIcons.favorite_border,
           label: 'いいねしてくれたユーザー',
           onTap: () => context.push('/mypage/likes'),
         ),
         const SizedBox(height: 8),
         _MenuTile(
-          icon: Icons.notifications_outlined,
+          icon: AppIcons.notifications_outlined,
           label: '通知設定',
           onTap: () => context.push('/settings/notifications'),
         ),
         const SizedBox(height: 8),
         _MenuTile(
-          icon: Icons.verified_user_outlined,
+          icon: AppIcons.verified_user_outlined,
           label: '本人確認',
           onTap: () => context.push('/settings/identity'),
         ),
         const SizedBox(height: 8),
         _MenuTile(
-          icon: Icons.help_outline,
+          icon: AppIcons.help_outline,
           label: 'ヘルプ/お問い合わせ',
           onTap: () => context.push('/help'),
         ),
@@ -548,14 +574,14 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.grey.shade100,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadii.sm),
             border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
           ),
           child: Column(
@@ -602,14 +628,14 @@ class _MenuTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.grey.shade100,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadii.sm),
             border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
           ),
           child: Row(
@@ -626,7 +652,7 @@ class _MenuTile extends StatelessWidget {
                   ),
                 ),
               ),
-              Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
+              Icon(AppIcons.chevron_right, size: 20, color: AppColors.textSecondary),
             ],
           ),
         ),

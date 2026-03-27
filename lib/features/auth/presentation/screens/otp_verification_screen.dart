@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/config/app_theme.dart';
 import '../providers/auth_providers.dart';
 
 class OtpVerificationScreen extends ConsumerStatefulWidget {
@@ -28,13 +29,10 @@ class _OtpVerificationScreenState
   void initState() {
     super.initState();
     final controller = ref.read(phoneAuthControllerProvider.notifier);
-    final state = ref.read(phoneAuthControllerProvider);
-    if (state.verificationId == null || state.verificationId!.isEmpty) {
-      controller.state = controller.state.copyWith(
-        verificationId: widget.verificationId.isNotEmpty ? widget.verificationId : null,
-        lastVerifiedPhoneNumber: widget.phoneNumber ?? state.lastVerifiedPhoneNumber,
-      );
-    }
+    controller.seedVerificationContext(
+      verificationId: widget.verificationId,
+      phoneNumber: widget.phoneNumber,
+    );
   }
 
   @override
@@ -53,7 +51,7 @@ class _OtpVerificationScreenState
         title: const Text('認証コードを入力'),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Form(
           key: _formKey,
           child: Column(

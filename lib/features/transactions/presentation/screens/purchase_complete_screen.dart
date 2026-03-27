@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 
 class PurchaseCompleteScreen extends StatelessWidget {
   const PurchaseCompleteScreen({super.key, required this.transactionId});
@@ -14,7 +15,7 @@ class PurchaseCompleteScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -26,7 +27,7 @@ class PurchaseCompleteScreen extends StatelessWidget {
                   color: AppColors.success,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check, size: 48, color: Colors.white),
+                child: const Icon(AppIcons.check, size: 48, color: Colors.white),
               ),
               const SizedBox(height: 24),
               const Text(
@@ -57,7 +58,7 @@ class PurchaseCompleteScreen extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
                     ),
                   ),
                   child: const Text('取引画面へ'),
@@ -73,7 +74,7 @@ class PurchaseCompleteScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     side: const BorderSide(color: AppColors.border),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
                     ),
                   ),
                   child: const Text('ホームへ戻る'),

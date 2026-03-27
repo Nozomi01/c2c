@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../domain/models/service.dart';
 import '../providers/service_list_provider.dart';
 
@@ -82,12 +83,12 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
   ];
 
   static const _categories = [
-    _CategoryItem('トーク・雑談', Icons.chat_bubble_outline),
-    _CategoryItem('相談・アドバイス', Icons.lightbulb_outline),
-    _CategoryItem('カフェ・ご飯', Icons.restaurant_outlined),
-    _CategoryItem('趣味・遊び', Icons.sports_esports_outlined),
-    _CategoryItem('お出かけ・同行', Icons.person_outline),
-    _CategoryItem('その他', Icons.star_border),
+    _CategoryItem('トーク・雑談', AppIcons.chat_bubble_outline),
+    _CategoryItem('相談・アドバイス', AppIcons.lightbulb_outline),
+    _CategoryItem('カフェ・ご飯', AppIcons.restaurant_outlined),
+    _CategoryItem('趣味・遊び', AppIcons.sports_esports_outlined),
+    _CategoryItem('お出かけ・同行', AppIcons.person_outline),
+    _CategoryItem('その他', AppIcons.star_border),
   ];
 
   static String _durationLabel(int minutes) {
@@ -120,7 +121,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(AppIcons.close),
           onPressed: () => context.go('/home'),
         ),
         title: const Text('新規出品'),
@@ -129,7 +130,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
       body: user == null
           ? const Center(child: Text('ログインが必要です'))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.screenPadding),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -149,7 +150,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                             clipBehavior: Clip.none,
                             children: [
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(AppRadii.sm),
                                 child: SizedBox(
                                   width: 80,
                                   height: 80,
@@ -164,7 +165,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                                   child: const CircleAvatar(
                                     radius: 12,
                                     backgroundColor: Colors.black54,
-                                    child: Icon(Icons.close, size: 16, color: Colors.white),
+                                    child: Icon(AppIcons.close, size: 16, color: Colors.white),
                                   ),
                                 ),
                               ),
@@ -174,19 +175,19 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                         if (_imageFiles.length < _maxImages)
                           InkWell(
                             onTap: _pickImages,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(AppRadii.sm),
                             child: Container(
                               width: 80,
                               height: 80,
                               decoration: BoxDecoration(
                                 color: Colors.grey.shade200,
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(AppRadii.sm),
                                 border: Border.all(color: AppColors.border),
                               ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.add_photo_alternate, size: 28, color: Colors.grey.shade600),
+                                  Icon(AppIcons.add_photo_alternate, size: 28, color: Colors.grey.shade600),
                                   const SizedBox(height: 4),
                                   Text('追加', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500)),
                                 ],
@@ -225,13 +226,13 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                         final isSelected = _category == item.label;
                         return InkWell(
                           onTap: () => setState(() => _category = item.label),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(AppRadii.sm),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             decoration: BoxDecoration(
                               color: isSelected ? AppColors.primarySoft : Colors.white,
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(AppRadii.sm),
                               border: Border.all(
                                 color: isSelected ? AppColors.primary : AppColors.border,
                                 width: isSelected ? 2 : 1,
@@ -343,18 +344,11 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                     if (_scheduleMode == _ScheduleMode.specify) ...[
                       const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(AppSpacing.screenPadding),
                         decoration: BoxDecoration(
                           color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(AppRadii.sm),
                           border: Border.all(color: AppColors.border),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,7 +360,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                                   ? DateFormat('y/M/d').format(_selectedDate!)
                                   : null,
                               hint: '日付を選択',
-                              icon: Icons.calendar_today,
+                              icon: AppIcons.calendar_today,
                               onTap: () => _showDatePickerBottomSheet(context),
                             ),
                             const SizedBox(height: 12),
@@ -375,7 +369,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                             _buildTapField(
                               value: _selectedTimeSlots.isEmpty ? null : _selectedTimeSlots.first,
                               hint: '時間帯を選択',
-                              icon: Icons.access_time,
+                              icon: AppIcons.access_time,
                               onTap: () => _showTimeSlotBottomSheet(context),
                             ),
                             if (_selectedTimeSlots.isNotEmpty) ...[
@@ -386,7 +380,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                                 children: _selectedTimeSlots.map((slot) {
                                   return Chip(
                                     label: Text(slot, style: const TextStyle(fontSize: 12)),
-                                    deleteIcon: const Icon(Icons.close, size: 16),
+                                    deleteIcon: const Icon(AppIcons.close, size: 16),
                                     onDeleted: () => setState(() => _selectedTimeSlots.remove(slot)),
                                   );
                                 }).toList(),
@@ -394,7 +388,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                             ],
                             const SizedBox(height: 12),
                             _buildGreyOutlinedButton(
-                              icon: Icons.add,
+                              icon: AppIcons.add,
                               label: '時間帯を追加',
                               onPressed: () => _showTimeSlotBottomSheet(context),
                             ),
@@ -403,7 +397,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                       ),
                       const SizedBox(height: 12),
                       _buildGreyOutlinedButton(
-                        icon: Icons.calendar_today,
+                        icon: AppIcons.calendar_today,
                         label: '日程を追加',
                         onPressed: () {
                           if (_selectedDate == null || _selectedTimeSlots.isEmpty) {
@@ -442,7 +436,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                                     padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                                     decoration: BoxDecoration(
                                       color: Colors.grey.shade100,
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(AppRadii.sm),
                                       border: Border.all(color: AppColors.border),
                                     ),
                                     child: Column(
@@ -456,7 +450,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                                   ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                                  icon: const Icon(AppIcons.remove_circle_outline, color: Colors.red),
                                   onPressed: () => setState(() => _scheduleEntries.removeAt(index)),
                                 ),
                               ],
@@ -641,14 +635,14 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
       child: InputDecorator(
         decoration: InputDecoration(
           hintText: hint,
           suffixIcon: Icon(icon, size: 20, color: AppColors.textSecondary),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.sm)),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadii.sm),
             borderSide: const BorderSide(color: AppColors.border),
           ),
           filled: true,
@@ -670,7 +664,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
       ),
       builder: (ctx) {
         final maxH = MediaQuery.of(ctx).size.height * 0.6;
@@ -728,7 +722,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
     showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
       ),
       builder: (ctx) {
         final maxH = MediaQuery.of(ctx).size.height * 0.5;
@@ -778,13 +772,13 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
   Widget _buildScheduleChip(String label, bool selected, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: selected ? AppColors.primarySoft : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.border,
             width: 1,
@@ -810,15 +804,15 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
   }) {
     return Material(
       color: Colors.grey.shade200,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         child: Container(
           width: fullWidth ? double.infinity : null,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: AppSpacing.listHorizontal),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadii.sm),
             border: Border.all(color: AppColors.border),
           ),
           child: Row(
@@ -838,13 +832,13 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
   Widget _buildChip(String label, bool selected, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: selected ? AppColors.primarySoft : Colors.white,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.border,
             width: selected ? 2 : 1,

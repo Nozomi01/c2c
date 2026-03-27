@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../domain/models/chat.dart';
 import '../providers/chat_providers.dart';
 
@@ -35,7 +36,7 @@ class ChatListScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.chat_bubble_outline, size: 64, color: AppColors.textSecondary),
+                  Icon(AppIcons.chat_bubble_outline, size: 64, color: AppColors.textSecondary),
                   SizedBox(height: 16),
                   Text(
                     'メッセージはありません',
@@ -149,7 +150,7 @@ class _ChatListTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.md),
           child: Row(
             children: [
               SizedBox(
@@ -179,14 +180,7 @@ class _ChatListTile extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.red.shade600,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 2,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
+                            borderRadius: BorderRadius.circular(AppRadii.md),
                           ),
                           constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                           child: Center(
@@ -252,7 +246,7 @@ class _ChatListTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+              const Icon(AppIcons.chevron_right, color: AppColors.textSecondary),
             ],
           ),
         ),

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/widgets/share_link_bottom_sheet.dart';
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../domain/models/service.dart';
 import '../providers/service_detail_provider.dart';
 
@@ -145,7 +146,7 @@ class _ServiceRequestScreenState extends ConsumerState<ServiceRequestScreen> {
           Builder(
             builder: (buttonContext) {
               return IconButton(
-                icon: const Icon(Icons.share_outlined),
+                icon: const Icon(AppIcons.share_outlined),
                 tooltip: 'リンクを共有',
                 onPressed: () => showServiceRequestShareSheet(
                   buttonContext,
@@ -161,7 +162,7 @@ class _ServiceRequestScreenState extends ConsumerState<ServiceRequestScreen> {
           child: Form(
             key: _formKey,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.screenPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -219,16 +220,16 @@ class _ServiceRequestScreenState extends ConsumerState<ServiceRequestScreen> {
                   const SizedBox(height: 8),
                   InkWell(
                     onTap: () => _pickDateTime(context),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(AppRadii.sm),
                         border: Border.all(color: AppColors.border),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today, size: 20, color: AppColors.textSecondary),
+                          const Icon(AppIcons.calendar_today, size: 20, color: AppColors.textSecondary),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -255,7 +256,7 @@ class _ServiceRequestScreenState extends ConsumerState<ServiceRequestScreen> {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(AppRadii.sm),
                         ),
                       ),
                       child: Text(_submitting ? '送信中...' : 'この内容で依頼する'),
@@ -285,7 +286,7 @@ class _ServiceSummary extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.primarySoft.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

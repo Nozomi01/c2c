@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../../transactions/domain/models/transaction.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
 
@@ -63,7 +64,7 @@ class CompletedItemsScreen extends ConsumerWidget {
               }
 
               return ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.screenPadding),
                 children: [
                   if (requestDocs.isNotEmpty) ...[
                     const Text(
@@ -87,7 +88,7 @@ class CompletedItemsScreen extends ConsumerWidget {
                         contentPadding: EdgeInsets.zero,
                         title: Text(title),
                         subtitle: Text('依頼者: $buyerName ${time.isEmpty ? '' : '・$time'}'),
-                        trailing: const Icon(Icons.chevron_right),
+                        trailing: const Icon(AppIcons.chevron_right),
                         onTap: () => context.push('/seller/requests/${d.id}'),
                       );
                     }),
@@ -110,7 +111,7 @@ class CompletedItemsScreen extends ConsumerWidget {
                         contentPadding: EdgeInsets.zero,
                         title: Text('¥${NumberFormat('#,###').format(t.price)}'),
                         subtitle: Text(t.status == TransactionStatus.reviewed ? 'レビュー済み' : '完了'),
-                        trailing: const Icon(Icons.chevron_right),
+                        trailing: const Icon(AppIcons.chevron_right),
                         onTap: () => context.push('/transactions/${t.id}'),
                       );
                     }),
@@ -129,7 +130,7 @@ class CompletedItemsScreen extends ConsumerWidget {
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       leading: IconButton(
-        icon: const Icon(Icons.chevron_left),
+        icon: const Icon(AppIcons.chevron_left),
         onPressed: () => context.pop(),
       ),
       title: const Text(

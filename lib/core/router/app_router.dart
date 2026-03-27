@@ -7,11 +7,11 @@ import '../../features/home/presentation/screens/home_shell.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/auth/presentation/screens/phone_number_screen.dart';
 import '../../features/auth/presentation/screens/otp_verification_screen.dart';
-import '../../features/services/presentation/screens/service_list_screen.dart';
 import '../../features/services/presentation/screens/service_detail_screen.dart';
 import '../../features/services/presentation/screens/service_request_screen.dart';
 import '../../features/services/presentation/screens/create_service_screen.dart';
-import '../../features/services/presentation/screens/category_service_list_screen.dart';
+import '../../features/board/presentation/screens/people_board_screen.dart';
+import '../../features/board/presentation/screens/person_profile_screen.dart';
 import '../../features/chat/presentation/screens/chat_list_screen.dart';
 import '../../features/chat/presentation/screens/chat_thread_screen.dart';
 import '../../features/profile/presentation/screens/account_settings_screen.dart';
@@ -41,12 +41,82 @@ import '../../features/transactions/presentation/screens/seller_requests_list_sc
 import '../../features/transactions/presentation/screens/seller_request_detail_screen.dart';
 import '../../features/transactions/presentation/screens/revision_or_dispute_screen.dart';
 import '../../features/services/domain/models/service.dart';
+import '../config/app_theme.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
+
+CustomTransitionPage<void> _buildBottomSheetPage({
+  required BuildContext context,
+  required LocalKey key,
+  required Widget child,
+}) {
+  final platform = Theme.of(context).platform;
+  final isIOS = platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
+  return CustomTransitionPage<void>(
+    key: key,
+    opaque: false,
+    barrierDismissible: isIOS,
+    barrierColor: Colors.black54,
+    transitionDuration: Duration(milliseconds: isIOS ? 320 : 250),
+    reverseTransitionDuration: Duration(milliseconds: isIOS ? 260 : 200),
+    child: Align(
+      alignment: Alignment.bottomCenter,
+      child: Material(
+        color: Colors.transparent,
+        child: SafeArea(
+          top: false,
+          child: FractionallySizedBox(
+            heightFactor: isIOS ? 0.92 : 0.95,
+            widthFactor: 1,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppRadii.xl),
+              ),
+              child: Scaffold(
+                backgroundColor: Colors.white,
+                body: child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final offsetAnimation = Tween<Offset>(
+        begin: const Offset(0, 1),
+        end: Offset.zero,
+      ).animate(
+        CurvedAnimation(
+          parent: animation,
+          curve: isIOS ? Curves.easeOut : Curves.easeOutCubic,
+        ),
+      );
+      return SlideTransition(
+        position: offsetAnimation,
+        child: child,
+      );
+    },
+  );
+}
 
 final GoRouter _appRouter = GoRouter(
     navigatorKey: navigatorKey,
     initialLocation: '/',
+    redirect: (context, state) {
+      final uri = state.uri;
+
+      // iOS Firebase Auth callbacks (Phone/Auth reCAPTCHA) can arrive as
+      // custom scheme URLs and should not be treated as app navigation routes.
+      final isFirebaseAuthCustomSchemeCallback =
+          uri.scheme.startsWith('com.googleusercontent.apps.') &&
+          uri.host == 'firebaseauth' &&
+          uri.path == '/link';
+      if (isFirebaseAuthCustomSchemeCallback) {
+        return '/';
+      }
+
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/',
@@ -97,7 +167,7 @@ final GoRouter _appRouter = GoRouter(
               GoRoute(
                 path: '/listings',
                 name: 'listings',
-                builder: (context, state) => ServiceListScreen(
+                builder: (context, state) => PeopleBoardScreen(
                   initialQuery: state.uri.queryParameters['q'],
                 ),
               ),
@@ -107,7 +177,7 @@ final GoRouter _appRouter = GoRouter(
                 builder: (context, state) {
                   final category =
                       state.uri.queryParameters['name'] ?? 'カテゴリ';
-                  return CategoryServiceListScreen(category: category);
+                  return PeopleBoardScreen(initialQuery: category);
                 },
               ),
             ],
@@ -135,7 +205,11 @@ final GoRouter _appRouter = GoRouter(
       GoRoute(
         path: '/create',
         name: 'create',
-        builder: (context, state) => const CreateServiceScreen(),
+        pageBuilder: (context, state) => _buildBottomSheetPage(
+          context: context,
+          key: state.pageKey,
+          child: const CreateServiceScreen(),
+        ),
       ),
       GoRoute(
         path: '/services/:id',
@@ -216,11 +290,21 @@ final GoRouter _appRouter = GoRouter(
         name: 'chatThread',
         builder: (context, state) => ChatThreadScreen(chatId: state.pathParameters['id']!),
       ),
+      GoRoute(
+        path: '/people/:id',
+        name: 'personProfile',
+        builder: (context, state) =>
+            PersonProfileScreen(userId: state.pathParameters['id']!),
+      ),
       // Additional nested / detail routes
       GoRoute(
         path: '/services/create',
         name: 'createService',
-        builder: (context, state) => const CreateServiceScreen(),
+        pageBuilder: (context, state) => _buildBottomSheetPage(
+          context: context,
+          key: state.pageKey,
+          child: const CreateServiceScreen(),
+        ),
       ),
       GoRoute(
         path: '/settings/account',

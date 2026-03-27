@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../../../core/widgets/share_link_bottom_sheet.dart';
 import '../../../chat/presentation/providers/chat_providers.dart';
 import '../../domain/models/service.dart';
@@ -124,7 +125,7 @@ class _Content extends StatelessWidget {
                   onSharePressed: onSharePressed,
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.listHorizontal, 16, AppSpacing.listHorizontal, 0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -150,14 +151,14 @@ class _Content extends StatelessWidget {
                       const SizedBox(height: 10),
                       Row(
                         children: [
-                          Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.textSecondary),
+                          Icon(AppIcons.chat_bubble_outline, size: 18, color: AppColors.textSecondary),
                           const SizedBox(width: 6),
                           Text(
                             service.category,
                             style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
                           ),
                           const SizedBox(width: 16),
-                          Icon(Icons.schedule, size: 18, color: AppColors.textSecondary),
+                          Icon(AppIcons.schedule, size: 18, color: AppColors.textSecondary),
                           const SizedBox(width: 6),
                           Text(
                             _formatRelativeTime(service.createdAt),
@@ -235,7 +236,7 @@ class _ImageHeader extends StatelessWidget {
               ? Container(
                   color: AppColors.primarySoft,
                   child: const Center(
-                    child: Icon(Icons.image, size: 64, color: AppColors.primary),
+                    child: Icon(AppIcons.image, size: 64, color: AppColors.primary),
                   ),
                 )
               : PageView.builder(
@@ -245,7 +246,7 @@ class _ImageHeader extends StatelessWidget {
                     fit: BoxFit.cover,
                     errorWidget: (_, __, ___) => Container(
                       color: AppColors.primarySoft,
-                      child: const Icon(Icons.broken_image_outlined, color: AppColors.primary, size: 48),
+                      child: const Icon(AppIcons.broken_image_outlined, color: AppColors.primary, size: 48),
                     ),
                   ),
                 ),
@@ -254,7 +255,7 @@ class _ImageHeader extends StatelessWidget {
           left: 16,
           top: MediaQuery.of(context).padding.top + 8,
           child: _CircleIconButton(
-            icon: Icons.arrow_back,
+            icon: AppIcons.arrow_back,
             onPressed: () => context.pop(),
           ),
         ),
@@ -262,7 +263,7 @@ class _ImageHeader extends StatelessWidget {
           right: 16,
           top: MediaQuery.of(context).padding.top + 8,
           child: _CircleIconButton(
-            icon: Icons.share_outlined,
+            icon: AppIcons.share_outlined,
             onPressed: onSharePressed,
           ),
         ),
@@ -312,10 +313,10 @@ class _ProductInfoBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.screenPadding),
       decoration: BoxDecoration(
         color: AppColors.border.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,7 +341,7 @@ class _ProductInfoBox extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.blue.shade700),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(AppRadii.xl),
                     ),
                     child: Text('オンライン', style: TextStyle(fontSize: 13, color: Colors.blue.shade700)),
                   ),
@@ -349,7 +350,7 @@ class _ProductInfoBox extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: const Color(0xFF81C784),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(AppRadii.xl),
                     ),
                     child: const Text('対面', style: TextStyle(fontSize: 13, color: Colors.white)),
                   ),
@@ -430,7 +431,7 @@ class _SellerSection extends StatelessWidget {
             CircleAvatar(
               radius: 28,
               backgroundColor: AppColors.primarySoft,
-              child: const Icon(Icons.person, size: 32, color: AppColors.primary),
+              child: const Icon(AppIcons.person, size: 32, color: AppColors.primary),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -451,7 +452,7 @@ class _SellerSection extends StatelessWidget {
                       ...List.generate(5, (i) {
                         final isFilled = i < filled;
                         return Icon(
-                          isFilled ? Icons.star : Icons.star_border,
+                          isFilled ? AppIcons.star : AppIcons.star_border,
                           size: 16,
                           color: const Color(0xFFFFB300),
                         );
@@ -491,28 +492,21 @@ class _BottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(AppSpacing.listHorizontal, 12, AppSpacing.listHorizontal, 12 + MediaQuery.of(context).padding.bottom),
       decoration: const BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, -2),
-          ),
-        ],
       ),
       child: Row(
         children: [
           OutlinedButton(
             onPressed: onToggleLike,
             style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.md),
               side: const BorderSide(color: AppColors.border),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.sm)),
             ),
             child: Icon(
-              isLiked ? Icons.favorite : Icons.favorite_border,
+              isLiked ? AppIcons.favorite : AppIcons.favorite_border,
               size: 24,
               color: isLiked ? AppColors.primary : null,
             ),
@@ -521,11 +515,11 @@ class _BottomBar extends StatelessWidget {
           OutlinedButton(
             onPressed: onChatPressed,
             style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.md),
               side: const BorderSide(color: AppColors.border),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.sm)),
             ),
-            child: const Icon(Icons.mail_outline, size: 24),
+            child: const Icon(AppIcons.mail_outline, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -537,14 +531,14 @@ class _BottomBar extends StatelessWidget {
                   pathParameters: {'id': service.id},
                 );
               },
-              icon: const Icon(Icons.assignment, size: 20),
+              icon: const Icon(AppIcons.assignment, size: 20),
               label: const Text('サービスを依頼'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
                 ),
               ),
             ),

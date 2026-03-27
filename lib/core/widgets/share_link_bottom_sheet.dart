@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config/app_links.dart';
+import '../config/app_theme.dart';
+import '../ui/app_icons.dart';
 
 /// Same share flow as the service request screen: request URL + SMS / Mail / LINE / copy.
 Future<void> showServiceRequestShareSheet(
@@ -31,7 +33,7 @@ Future<void> showShareLinkBottomSheet(
     context: context,
     showDragHandle: true,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
     ),
     builder: (sheetContext) {
       return SafeArea(
@@ -54,7 +56,7 @@ Future<void> showShareLinkBottomSheet(
                 children: [
                   Expanded(
                     child: _ShareSheetRowItem(
-                      icon: const Icon(Icons.sms_outlined, size: 28),
+                      icon: const Icon(AppIcons.sms_outlined, size: 28),
                       label: 'SMS',
                       onTap: () async {
                         Navigator.of(sheetContext).pop();
@@ -64,7 +66,7 @@ Future<void> showShareLinkBottomSheet(
                   ),
                   Expanded(
                     child: _ShareSheetRowItem(
-                      icon: const Icon(Icons.mail_outline, size: 28),
+                      icon: const Icon(AppIcons.mail_outline, size: 28),
                       label: 'メール',
                       onTap: () async {
                         Navigator.of(sheetContext).pop();
@@ -88,7 +90,7 @@ Future<void> showShareLinkBottomSheet(
                   ),
                   Expanded(
                     child: _ShareSheetRowItem(
-                      icon: const Icon(Icons.link, size: 28),
+                      icon: const Icon(AppIcons.link, size: 28),
                       label: 'コピー',
                       onTap: () async {
                         Navigator.of(sheetContext).pop();
@@ -129,7 +131,7 @@ class _ShareSheetRowItem extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.md),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
           child: Column(
@@ -163,7 +165,7 @@ Widget _lineLeadingIcon({double size = 40}) {
     height: size,
     decoration: BoxDecoration(
       color: const Color(0xFF06C755),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AppRadii.xs),
     ),
     alignment: Alignment.center,
     child: Text(

@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/config/app_links.dart';
 import '../../../../core/widgets/share_link_bottom_sheet.dart';
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../../chat/presentation/providers/chat_providers.dart';
 import '../../../services/domain/models/service.dart';
 import '../../../services/presentation/providers/service_detail_provider.dart';
@@ -41,7 +42,7 @@ class TransactionDetailScreen extends ConsumerWidget {
         return Scaffold(
           appBar: AppBar(
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
+              icon: const Icon(AppIcons.arrow_back),
               onPressed: () => _safePop(context),
             ),
             title: const Text('購入'),
@@ -61,7 +62,7 @@ class TransactionDetailScreen extends ConsumerWidget {
         backgroundColor: AppColors.background,
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(AppIcons.arrow_back),
             onPressed: () => _safePop(context),
           ),
           title: const Text('取引の詳細'),
@@ -69,7 +70,7 @@ class TransactionDetailScreen extends ConsumerWidget {
           foregroundColor: AppColors.textPrimary,
           actions: [
             IconButton(
-              icon: const Icon(Icons.share_outlined),
+              icon: const Icon(AppIcons.share_outlined),
               tooltip: 'リンクを共有',
               onPressed: () => _shareTransactionLink(context, tx.id),
             ),
@@ -81,7 +82,7 @@ class TransactionDetailScreen extends ConsumerWidget {
         backgroundColor: AppColors.background,
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(AppIcons.arrow_back),
             onPressed: () => _safePop(context),
           ),
           title: const Text('取引の詳細'),
@@ -94,7 +95,7 @@ class TransactionDetailScreen extends ConsumerWidget {
         backgroundColor: AppColors.background,
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(AppIcons.arrow_back),
             onPressed: () => _safePop(context),
           ),
           title: const Text('取引の詳細'),
@@ -103,7 +104,7 @@ class TransactionDetailScreen extends ConsumerWidget {
         ),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.xl),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -211,7 +212,7 @@ class _PurchaseConfirmScreenState extends ConsumerState<_PurchaseConfirmScreen> 
       backgroundColor: AppColors.background,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(AppIcons.close),
           onPressed: () => _safePop(context),
         ),
         title: const Text('購入の確認'),
@@ -223,30 +224,23 @@ class _PurchaseConfirmScreenState extends ConsumerState<_PurchaseConfirmScreen> 
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.screenPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AppSpacing.screenPadding),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.06),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      borderRadius: BorderRadius.circular(AppRadii.md),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (s.images.isNotEmpty) ...[
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(AppRadii.xs),
                             child: SizedBox(
                               height: 160,
                               width: double.infinity,
@@ -255,7 +249,7 @@ class _PurchaseConfirmScreenState extends ConsumerState<_PurchaseConfirmScreen> 
                                 fit: BoxFit.cover,
                                 errorWidget: (_, __, ___) => Container(
                                   color: AppColors.primarySoft,
-                                  child: const Icon(Icons.broken_image_outlined, color: AppColors.primary),
+                                  child: const Icon(AppIcons.broken_image_outlined, color: AppColors.primary),
                                 ),
                               ),
                             ),
@@ -318,16 +312,9 @@ class _PurchaseConfirmScreenState extends ConsumerState<_PurchaseConfirmScreen> 
             ),
           ),
           Container(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
+            padding: EdgeInsets.fromLTRB(AppSpacing.listHorizontal, 12, AppSpacing.listHorizontal, 12 + MediaQuery.of(context).padding.bottom),
             decoration: const BoxDecoration(
               color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 4,
-                  offset: Offset(0, -2),
-                ),
-              ],
             ),
             child: SafeArea(
               top: false,
@@ -358,7 +345,7 @@ class _PurchaseConfirmScreenState extends ConsumerState<_PurchaseConfirmScreen> 
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(AppRadii.sm),
                         ),
                       ),
                       child: Text(_submitting ? '処理中...' : '購入を確定する'),
@@ -388,7 +375,7 @@ class _TransactionDetailContent extends ConsumerWidget {
     final isSeller = userId == transaction.sellerId;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.screenPadding),
       child: RepaintBoundary(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,13 +407,13 @@ class _TransactionDetailContent extends ConsumerWidget {
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () => _openChatWithSeller(context, ref),
-            icon: const Icon(Icons.chat_bubble_outline, size: 20),
+            icon: const Icon(AppIcons.chat_bubble_outline, size: 20),
             label: const Text('取引相手にメッセージ'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               side: const BorderSide(color: AppColors.border),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
               ),
             ),
           ),
@@ -442,7 +429,7 @@ class _TransactionDetailContent extends ConsumerWidget {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
                   ),
                 ),
                 child: const Text('支払い方法を選択'),
@@ -480,7 +467,7 @@ class _TransactionDetailContent extends ConsumerWidget {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
                   ),
                 ),
                 child: const Text('サービスを提供しました'),
@@ -498,7 +485,7 @@ class _TransactionDetailContent extends ConsumerWidget {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
                   ),
                 ),
                 child: const Text('サービスを受け取りました'),
@@ -513,7 +500,7 @@ class _TransactionDetailContent extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   side: const BorderSide(color: AppColors.border),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
                   ),
                 ),
                 child: const Text('修正依頼・問題を報告する'),
@@ -524,7 +511,7 @@ class _TransactionDetailContent extends ConsumerWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppColors.primarySoft.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
               ),
               child: const Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -618,17 +605,10 @@ class _StatusHeader extends StatelessWidget {
     final (title, subtitle) = _statusText(status);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.screenPadding),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppRadii.md),
       ),
       child: Row(
         children: [
@@ -638,7 +618,7 @@ class _StatusHeader extends StatelessWidget {
               color: AppColors.primarySoft,
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.person_outline, size: 28, color: AppColors.primary),
+            child: Icon(AppIcons.person_outline, size: 28, color: AppColors.primary),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -712,7 +692,7 @@ class _ProgressTabs extends StatelessWidget {
                 height: 3,
                 decoration: BoxDecoration(
                   color: isSelected ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(AppRadii.xxs),
                 ),
               ),
             ],
@@ -736,33 +716,26 @@ class _PurchasedItemCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppRadii.sm),
       ),
       child: Row(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadii.xs),
             child: SizedBox(
               width: 80,
               height: 80,
               child: imageUrl == null
                   ? Container(
                       color: AppColors.primarySoft,
-                      child: const Icon(Icons.image, color: AppColors.primary),
+                      child: const Icon(AppIcons.image, color: AppColors.primary),
                     )
                   : CachedNetworkImage(
                       imageUrl: imageUrl,
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) => Container(
                         color: AppColors.primarySoft,
-                        child: const Icon(Icons.broken_image_outlined, color: AppColors.primary),
+                        child: const Icon(AppIcons.broken_image_outlined, color: AppColors.primary),
                       ),
                     ),
             ),
@@ -796,7 +769,7 @@ class _PurchasedItemCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: AppColors.border.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadii.md),
                   ),
                   child: const Text('取引中', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                 ),
@@ -819,7 +792,7 @@ class _PurchasedItemCard extends StatelessWidget {
               return IconButton(
                 tooltip: isLiked ? 'いいねを外す' : 'いいねする',
                 icon: Icon(
-                  isLiked ? Icons.favorite : Icons.favorite_border,
+                  isLiked ? AppIcons.favorite : AppIcons.favorite_border,
                   size: 22,
                   color: isLiked ? AppColors.primary : AppColors.textSecondary,
                 ),
@@ -855,7 +828,7 @@ class _PurchasedItemCardPlaceholder extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
       ),
       child: const Center(child: CircularProgressIndicator()),
     );
@@ -882,7 +855,7 @@ class _CounterpartySection extends StatelessWidget {
         CircleAvatar(
           radius: 24,
           backgroundColor: AppColors.primarySoft,
-          child: const Icon(Icons.person, color: AppColors.primary),
+          child: const Icon(AppIcons.person, color: AppColors.primary),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -927,7 +900,7 @@ class _CounterpartySection extends StatelessWidget {
                       ...List.generate(5, (i) {
                         final isFilled = i < filled;
                         return Icon(
-                          isFilled ? Icons.star : Icons.star_border,
+                          isFilled ? AppIcons.star : AppIcons.star_border,
                           size: 14,
                           color: const Color(0xFFFFB300),
                         );
@@ -939,7 +912,7 @@ class _CounterpartySection extends StatelessWidget {
                       ),
                       if (verified) ...[
                         const SizedBox(width: 8),
-                        Icon(Icons.verified, size: 16, color: Colors.green.shade600),
+                        Icon(AppIcons.verified, size: 16, color: Colors.green.shade600),
                         const SizedBox(width: 2),
                         Text('本人確認済', style: TextStyle(fontSize: 12, color: Colors.green.shade700)),
                       ],

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 
 class MyRequestsScreen extends ConsumerWidget {
   const MyRequestsScreen({super.key});
@@ -46,7 +47,7 @@ class MyRequestsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.assignment_outlined,
+                  Icon(AppIcons.assignment_outlined,
                       size: 64, color: AppColors.textSecondary),
                   SizedBox(height: 16),
                   Text(
@@ -61,7 +62,7 @@ class MyRequestsScreen extends ConsumerWidget {
             );
           }
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.screenPadding),
             itemCount: docs.length,
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, index) {
@@ -103,7 +104,7 @@ class MyRequestsScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                trailing: const Icon(Icons.chevron_right,
+                trailing: const Icon(AppIcons.chevron_right,
                     size: 20, color: AppColors.textSecondary),
                 onTap: () {
                   context.push('/seller/requests/${doc.id}');
@@ -119,7 +120,7 @@ class MyRequestsScreen extends ConsumerWidget {
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       leading: IconButton(
-        icon: const Icon(Icons.chevron_left),
+        icon: const Icon(AppIcons.chevron_left),
         onPressed: () => Navigator.of(context).pop(),
       ),
       title: const Text(

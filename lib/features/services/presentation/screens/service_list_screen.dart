@@ -5,6 +5,7 @@ import '../providers/service_list_provider.dart';
 import '../widgets/service_card.dart';
 import '../../../../widgets/shimmer_list.dart';
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 
 class ServiceListScreen extends ConsumerStatefulWidget {
   const ServiceListScreen({super.key, this.initialQuery});
@@ -53,14 +54,14 @@ class _ServiceListScreenState extends ConsumerState<ServiceListScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.md),
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
                     hintText: 'キーワードで検索',
-                    prefixIcon: const Icon(Icons.search, size: 20),
+                    prefixIcon: const Icon(AppIcons.search, size: 20),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
                     ),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(
@@ -91,7 +92,7 @@ class _ServiceListScreenState extends ConsumerState<ServiceListScreen> {
                 if (filtered.isEmpty) {
                   return const SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.all(24),
+                      padding: EdgeInsets.all(AppSpacing.xl),
                       child: Center(
                         child: Text(
                           '条件に合う出品がありません',
@@ -116,7 +117,7 @@ class _ServiceListScreenState extends ConsumerState<ServiceListScreen> {
               loading: () => const ShimmerList(),
               error: (e, st) => SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.screenPadding),
                   child: Text('読み込みに失敗しました: $e'),
                 ),
               ),

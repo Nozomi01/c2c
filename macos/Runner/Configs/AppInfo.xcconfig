@@ -8,7 +8,7 @@
 PRODUCT_NAME = c2c
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.c2c
+PRODUCT_BUNDLE_IDENTIFIER = com.wanty.service
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../../chat/presentation/providers/chat_providers.dart';
 import '../../../services/domain/models/service.dart';
 import '../../../services/presentation/providers/service_detail_provider.dart';
@@ -28,7 +29,7 @@ class TransactionCompletedScreen extends ConsumerWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(AppIcons.arrow_back),
           onPressed: () => _safePop(context),
         ),
         title: const Text('取引完了'),
@@ -40,7 +41,7 @@ class TransactionCompletedScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.xl),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -94,7 +95,7 @@ class _Content extends ConsumerWidget {
                 CircleAvatar(
                   radius: 40,
                   backgroundColor: AppColors.success,
-                  child: Icon(Icons.check, size: 48, color: Colors.white),
+                  child: Icon(AppIcons.check, size: 48, color: Colors.white),
                 ),
                 SizedBox(height: 16),
                 Text(
@@ -121,10 +122,10 @@ class _Content extends ConsumerWidget {
           const SizedBox(height: 24),
           // Rating prompt box
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.screenPadding),
             decoration: BoxDecoration(
               color: AppColors.primarySoft,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AppRadii.sm),
             ),
             child: const Text(
               '取引相手を評価して、取引を完了させましょう',
@@ -140,13 +141,13 @@ class _Content extends ConsumerWidget {
             height: 48,
             child: ElevatedButton.icon(
               onPressed: () => context.push('/transactions/${transaction.id}/rate'),
-              icon: const Icon(Icons.star, size: 20),
+              icon: const Icon(AppIcons.star, size: 20),
               label: const Text('相手を評価する'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
                 ),
               ),
             ),
@@ -190,13 +191,13 @@ class _Content extends ConsumerWidget {
           // 取引メッセージを見る
           OutlinedButton.icon(
             onPressed: () => _openChat(context, ref),
-            icon: const Icon(Icons.chat_bubble_outline, size: 20),
+            icon: const Icon(AppIcons.chat_bubble_outline, size: 20),
             label: const Text('取引メッセージを見る'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               side: const BorderSide(color: AppColors.border),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
               ),
             ),
           ),
@@ -245,27 +246,27 @@ class _ProductCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadii.xs),
             child: SizedBox(
               width: 72,
               height: 72,
               child: imageUrl == null
                   ? Container(
                       color: AppColors.primarySoft,
-                      child: const Icon(Icons.image, color: AppColors.primary),
+                      child: const Icon(AppIcons.image, color: AppColors.primary),
                     )
                   : CachedNetworkImage(
                       imageUrl: imageUrl,
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) => Container(
                         color: AppColors.primarySoft,
-                        child: const Icon(Icons.broken_image_outlined, color: AppColors.primary),
+                        child: const Icon(AppIcons.broken_image_outlined, color: AppColors.primary),
                       ),
                     ),
             ),
@@ -297,7 +298,7 @@ class _ProductCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const CircleAvatar(radius: 8, child: Icon(Icons.person, size: 12, color: Colors.white)),
+                    const CircleAvatar(radius: 8, child: Icon(AppIcons.person, size: 12, color: Colors.white)),
                     const SizedBox(width: 6),
                     Text(
                       sellerName,
@@ -323,7 +324,7 @@ class _ProductCardPlaceholder extends StatelessWidget {
       height: 96,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         border: Border.all(color: AppColors.border),
       ),
       child: const Center(child: CircularProgressIndicator()),

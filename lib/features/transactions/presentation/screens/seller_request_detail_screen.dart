@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 
 final sellerRequestDetailProvider =
     StreamProvider.family<DocumentSnapshot<Map<String, dynamic>>, String>(
@@ -86,7 +87,7 @@ class _SellerRequestDetailScreenState
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(AppIcons.chevron_left),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
@@ -124,7 +125,7 @@ class _SellerRequestDetailScreenState
               data['timeline'] as String?; // 文字列にして保存しておく想定
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.screenPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -133,7 +134,7 @@ class _SellerRequestDetailScreenState
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: AppColors.primarySoft.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,7 +235,7 @@ class _SellerRequestDetailScreenState
                               foregroundColor: AppColors.textPrimary,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(AppRadii.sm),
                               ),
                             ),
                             child: const Text('却下する'),
@@ -251,7 +252,7 @@ class _SellerRequestDetailScreenState
                               padding:
                                   const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(AppRadii.sm),
                               ),
                             ),
                             child: Text(_processing ? '処理中...' : '承認して進む'),
@@ -283,7 +284,7 @@ class _SellerRequestDetailScreenState
                           padding:
                               const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(AppRadii.sm),
                           ),
                         ),
                         child: const Text('取引詳細へ'),
@@ -310,7 +311,7 @@ class _SellerRequestDetailScreenState
                           padding:
                               const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(AppRadii.sm),
                           ),
                         ),
                         child: Text(_paying ? '処理中...' : '支払いへ進む'),
@@ -339,7 +340,7 @@ class _SellerRequestDetailScreenState
                             padding:
                                 const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(AppRadii.sm),
                             ),
                           ),
                           child: const Text('取引詳細へ'),

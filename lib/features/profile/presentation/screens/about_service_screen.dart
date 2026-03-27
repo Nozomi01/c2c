@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 
 class AboutServiceScreen extends StatelessWidget {
   const AboutServiceScreen({super.key});
@@ -12,7 +13,7 @@ class AboutServiceScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(AppIcons.chevron_left),
           onPressed: () => context.pop(),
         ),
         title: const Text(
@@ -29,7 +30,7 @@ class AboutServiceScreen extends StatelessWidget {
         surfaceTintColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.screenPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

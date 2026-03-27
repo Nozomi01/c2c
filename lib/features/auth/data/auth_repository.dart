@@ -189,8 +189,16 @@ class FirebaseAuthRepository implements AuthRepository {
       ],
       nonce: nonce,
     );
+
+    final idToken = appleCredential.identityToken;
+    if (idToken == null || idToken.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'apple_no_identity_token',
+        message: 'Appleログインで認証トークンを取得できませんでした。',
+      );
+    }
     final oauthCredential = OAuthProvider('apple.com').credential(
-      idToken: appleCredential.identityToken,
+      idToken: idToken,
       rawNonce: rawNonce,
     );
     final cred = await user.linkWithCredential(oauthCredential);
@@ -212,8 +220,15 @@ class FirebaseAuthRepository implements AuthRepository {
       nonce: nonce,
     );
 
+    final idToken = appleCredential.identityToken;
+    if (idToken == null || idToken.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'apple_no_identity_token',
+        message: 'Appleログインで認証トークンを取得できませんでした。',
+      );
+    }
     final oauthCredential = OAuthProvider('apple.com').credential(
-      idToken: appleCredential.identityToken,
+      idToken: idToken,
       rawNonce: rawNonce,
     );
 

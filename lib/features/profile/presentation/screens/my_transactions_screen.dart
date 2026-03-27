@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../../transactions/domain/models/transaction.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
 
@@ -39,7 +40,7 @@ class MyTransactionsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textSecondary),
+                  Icon(AppIcons.inventory_2_outlined, size: 64, color: AppColors.textSecondary),
                   SizedBox(height: 16),
                   Text(
                     '取引中の取引はありません',
@@ -50,7 +51,7 @@ class MyTransactionsScreen extends ConsumerWidget {
             );
           }
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.screenPadding),
             itemCount: active.length,
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (_, i) {
@@ -58,7 +59,7 @@ class MyTransactionsScreen extends ConsumerWidget {
               return ListTile(
                 title: Text('¥${tx.price}'),
                 subtitle: Text(_statusLabel(tx.status)),
-                trailing: const Icon(Icons.chevron_right),
+                trailing: const Icon(AppIcons.chevron_right),
                 onTap: () => context.push('/transactions/${tx.id}'),
               );
             },
@@ -88,7 +89,7 @@ class MyTransactionsScreen extends ConsumerWidget {
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       leading: IconButton(
-        icon: const Icon(Icons.chevron_left),
+        icon: const Icon(AppIcons.chevron_left),
         onPressed: () => context.pop(),
       ),
       title: const Text(

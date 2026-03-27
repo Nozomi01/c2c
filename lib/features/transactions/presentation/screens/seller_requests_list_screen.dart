@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 
 /// 単純なリクエストモデル（Firestore の `serviceRequests` コレクションを想定）
 class ServiceRequest {
@@ -74,7 +75,7 @@ class SellerRequestsListScreen extends ConsumerWidget {
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       leading: IconButton(
-        icon: const Icon(Icons.chevron_left),
+        icon: const Icon(AppIcons.chevron_left),
         onPressed: () => Navigator.of(context).pop(),
       ),
       title: const Text(
@@ -106,7 +107,7 @@ class _RequestsList extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.assignment_outlined, size: 64, color: AppColors.textSecondary),
+                Icon(AppIcons.assignment_outlined, size: 64, color: AppColors.textSecondary),
                 SizedBox(height: 16),
                 Text(
                   '受けている依頼はありません',
@@ -117,7 +118,7 @@ class _RequestsList extends ConsumerWidget {
           );
         }
         return ListView.separated(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.screenPadding),
           itemCount: list.length,
           separatorBuilder: (_, __) => const Divider(height: 1),
           itemBuilder: (context, index) {
@@ -217,7 +218,7 @@ class _RequestTile extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: _statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadii.md),
             ),
             child: Text(
               _statusLabel,
@@ -229,7 +230,7 @@ class _RequestTile extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          const Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+          const Icon(AppIcons.chevron_right, size: 18, color: AppColors.textSecondary),
         ],
       ),
       onTap: () {

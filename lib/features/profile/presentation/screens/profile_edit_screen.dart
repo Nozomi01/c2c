@@ -9,17 +9,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/config/app_theme.dart';
-
-/// Gender options for profile.
-enum ProfileGender {
-  unspecified('未選択'),
-  male('男性'),
-  female('女性'),
-  other('その他');
-
-  const ProfileGender(this.label);
-  final String label;
-}
+import '../../../../core/ui/app_icons.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -31,15 +21,21 @@ class ProfileEditScreen extends StatefulWidget {
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _displayNameController;
-  late final TextEditingController _fullNameController;
-  late final TextEditingController _addressController;
-  late final TextEditingController _phoneController;
+  late final TextEditingController _hourlyRateController;
   late final TextEditingController _bioController;
+  late final TextEditingController _fullNameController;
+  late final TextEditingController _birthDateController;
+  late final TextEditingController _phoneNumberController;
+  late final TextEditingController _locationController;
+  late final TextEditingController _skillsController;
+  late final TextEditingController _languagesController;
+  late final TextEditingController _availabilityController;
+  late final TextEditingController _experienceYearsController;
+  String _gender = 'unspecified';
 
   Uint8List? _avatarBytes;
   bool _saving = false;
   bool _loading = true;
-  ProfileGender _gender = ProfileGender.unspecified;
 
   @override
   void initState() {
@@ -47,10 +43,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     final user = FirebaseAuth.instance.currentUser;
     final initialName = user?.displayName ?? user?.email?.split('@').first ?? '';
     _displayNameController = TextEditingController(text: initialName);
-    _fullNameController = TextEditingController();
-    _addressController = TextEditingController();
-    _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
+    _hourlyRateController = TextEditingController();
     _bioController = TextEditingController();
+    _fullNameController = TextEditingController();
+    _birthDateController = TextEditingController();
+    _phoneNumberController = TextEditingController(text: user?.phoneNumber ?? '');
+    _locationController = TextEditingController();
+    _skillsController = TextEditingController();
+    _languagesController = TextEditingController();
+    _availabilityController = TextEditingController();
+    _experienceYearsController = TextEditingController();
     _loadProfile();
   }
 
@@ -70,17 +72,21 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       if (data != null) {
         _displayNameController.text =
             (data['displayName'] as String?) ?? _displayNameController.text;
-        _fullNameController.text = data['fullName'] as String? ?? '';
-        _addressController.text = data['address'] as String? ?? '';
-        _phoneController.text =
-            (data['phoneNumber'] as String?) ?? user.phoneNumber ?? '';
+        final hourlyRate = data['hourlyRate'];
+        _hourlyRateController.text = hourlyRate is num ? hourlyRate.toInt().toString() : '';
         _bioController.text = data['bio'] as String? ?? '';
+        _fullNameController.text = data['fullName'] as String? ?? '';
+        _birthDateController.text = data['birthDate'] as String? ?? '';
+        _phoneNumberController.text = data['phoneNumber'] as String? ?? user.phoneNumber ?? '';
+        _locationController.text = data['location'] as String? ?? '';
+        _skillsController.text = data['skills'] as String? ?? '';
+        _languagesController.text = data['languages'] as String? ?? '';
+        _availabilityController.text = data['availability'] as String? ?? '';
+        final exp = data['experienceYears'];
+        _experienceYearsController.text = exp is num ? exp.toInt().toString() : '';
         final g = data['gender'] as String?;
         if (g != null && g.isNotEmpty) {
-          _gender = ProfileGender.values.firstWhere(
-            (e) => e.name == g,
-            orElse: () => ProfileGender.unspecified,
-          );
+          _gender = g;
         }
       }
     } catch (_) {}
@@ -90,10 +96,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   @override
   void dispose() {
     _displayNameController.dispose();
-    _fullNameController.dispose();
-    _addressController.dispose();
-    _phoneController.dispose();
+    _hourlyRateController.dispose();
     _bioController.dispose();
+    _fullNameController.dispose();
+    _birthDateController.dispose();
+    _phoneNumberController.dispose();
+    _locationController.dispose();
+    _skillsController.dispose();
+    _languagesController.dispose();
+    _availabilityController.dispose();
+    _experienceYearsController.dispose();
     super.dispose();
   }
 
@@ -103,7 +115,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       height: 96,
       color: AppColors.primarySoft,
       alignment: Alignment.center,
-      child: const Icon(Icons.camera_alt, size: 40, color: AppColors.primary),
+      child: const Icon(AppIcons.camera_alt, size: 40, color: AppColors.primary),
     );
   }
 
@@ -115,7 +127,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(AppIcons.chevron_left),
           onPressed: () => context.pop(),
         ),
         title: const Text(
@@ -143,7 +155,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           : _loading
               ? const Center(child: CircularProgressIndicator())
               : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.screenPadding),
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -198,53 +210,22 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           },
                         ),
                         const SizedBox(height: 20),
-                        _sectionLabel('氏名'),
+                        _sectionLabel('時給（円）'),
                         const SizedBox(height: 8),
                         TextFormField(
-                          controller: _fullNameController,
+                          controller: _hourlyRateController,
+                          keyboardType: TextInputType.number,
                           decoration: const InputDecoration(
-                            hintText: '氏名を入力（任意）',
+                            hintText: '例: 5000',
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        _sectionLabel('性別'),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<ProfileGender>(
-                          value: _gender,
-                          decoration: const InputDecoration(
-                            hintText: '選択してください',
-                          ),
-                          items: ProfileGender.values
-                              .map((e) => DropdownMenuItem(
-                                    value: e,
-                                    child: Text(e.label),
-                                  ))
-                              .toList(),
-                          onChanged: _saving
-                              ? null
-                              : (v) {
-                                  if (v != null) setState(() => _gender = v);
-                                },
-                        ),
-                        const SizedBox(height: 20),
-                        _sectionLabel('住所'),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _addressController,
-                          decoration: const InputDecoration(
-                            hintText: '住所を入力（任意）',
-                          ),
-                          maxLines: 2,
-                        ),
-                        const SizedBox(height: 20),
-                        _sectionLabel('電話番号'),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(
-                            hintText: '電話番号を入力（任意）',
-                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return null;
+                            final n = int.tryParse(v.trim());
+                            if (n == null || n < 0) {
+                              return '0以上の数字を入力してください';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 20),
                         _sectionLabel('自己紹介'),
@@ -256,6 +237,118 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                             alignLabelWithHint: true,
                           ),
                           maxLines: 4,
+                        ),
+                        const SizedBox(height: 24),
+                        _sectionLabel('個人情報'),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _fullNameController,
+                          decoration: const InputDecoration(
+                            labelText: '氏名',
+                            hintText: '例: 山田 花子',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _birthDateController,
+                          readOnly: true,
+                          onTap: _saving
+                              ? null
+                              : () async {
+                                  final now = DateTime.now();
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime(now.year - 25, now.month, now.day),
+                                    firstDate: DateTime(1900, 1, 1),
+                                    lastDate: now,
+                                  );
+                                  if (picked == null) return;
+                                  final m = picked.month.toString().padLeft(2, '0');
+                                  final d = picked.day.toString().padLeft(2, '0');
+                                  _birthDateController.text = '${picked.year}-$m-$d';
+                                },
+                          decoration: const InputDecoration(
+                            labelText: '生年月日',
+                            hintText: 'YYYY-MM-DD',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _phoneNumberController,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            labelText: '電話番号',
+                            hintText: '例: +81 90 1234 5678',
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        _sectionLabel('詳細情報'),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: _gender,
+                          decoration: const InputDecoration(
+                            labelText: '性別',
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'unspecified', child: Text('未設定')),
+                            DropdownMenuItem(value: 'male', child: Text('男性')),
+                            DropdownMenuItem(value: 'female', child: Text('女性')),
+                            DropdownMenuItem(value: 'other', child: Text('その他')),
+                          ],
+                          onChanged: _saving
+                              ? null
+                              : (v) {
+                                  if (v != null) setState(() => _gender = v);
+                                },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _locationController,
+                          decoration: const InputDecoration(
+                            labelText: '活動エリア',
+                            hintText: '例: 東京都渋谷区 / オンライン可',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _skillsController,
+                          decoration: const InputDecoration(
+                            labelText: '得意分野',
+                            hintText: '例: 恋愛相談, キャリア相談, 英会話',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _languagesController,
+                          decoration: const InputDecoration(
+                            labelText: '対応言語',
+                            hintText: '例: 日本語, 英語',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _availabilityController,
+                          decoration: const InputDecoration(
+                            labelText: '対応可能時間',
+                            hintText: '例: 平日 19:00-23:00',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _experienceYearsController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: '経験年数',
+                            hintText: '例: 3',
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return null;
+                            final n = int.tryParse(v.trim());
+                            if (n == null || n < 0) {
+                              return '0以上の数字を入力してください';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 32),
                       ],
@@ -313,23 +406,35 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         await user.updateDisplayName(displayName);
       }
 
-      final fullName = _fullNameController.text.trim();
-      final address = _addressController.text.trim();
-      final phoneNumber = _phoneController.text.trim();
+      final hourlyRateText = _hourlyRateController.text.trim();
+      final hourlyRate = hourlyRateText.isEmpty ? null : int.tryParse(hourlyRateText);
       final bio = _bioController.text.trim();
+      final fullName = _fullNameController.text.trim();
+      final birthDate = _birthDateController.text.trim();
+      final phoneNumber = _phoneNumberController.text.trim();
+      final location = _locationController.text.trim();
+      final skills = _skillsController.text.trim();
+      final languages = _languagesController.text.trim();
+      final availability = _availabilityController.text.trim();
+      final experienceYearsText = _experienceYearsController.text.trim();
+      final experienceYears = experienceYearsText.isEmpty ? null : int.tryParse(experienceYearsText);
 
       final users = FirebaseFirestore.instance.collection('users');
       await users.doc(user.uid).set(
             {
               'displayName': displayName,
               'photoURL': photoUrl,
-              'fullName': fullName.isEmpty ? null : fullName,
-              'address': address.isEmpty ? null : address,
-              'gender': _gender == ProfileGender.unspecified
-                  ? null
-                  : _gender.name,
-              'phoneNumber': phoneNumber.isEmpty ? null : phoneNumber,
+              'hourlyRate': hourlyRate,
               'bio': bio.isEmpty ? null : bio,
+              'fullName': fullName.isEmpty ? null : fullName,
+              'birthDate': birthDate.isEmpty ? null : birthDate,
+              'phoneNumber': phoneNumber.isEmpty ? null : phoneNumber,
+              'gender': _gender == 'unspecified' ? null : _gender,
+              'location': location.isEmpty ? null : location,
+              'skills': skills.isEmpty ? null : skills,
+              'languages': languages.isEmpty ? null : languages,
+              'availability': availability.isEmpty ? null : availability,
+              'experienceYears': experienceYears,
               'updatedAt': FieldValue.serverTimestamp(),
             },
             SetOptions(merge: true),

@@ -96,6 +96,35 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/font/
+
+  fonts:
+    - family: SF Pro
+      fonts:
+        - asset: assets/font/SFPRODISPLAYREGULAR.OTF
+          weight: 400
+        - asset: assets/font/SFPRODISPLAYMEDIUM.OTF
+          weight: 500
+        - asset: assets/font/SFPRODISPLAYBOLD.OTF
+          weight: 700
+        - asset: assets/font/SFPRODISPLAYTHINITALIC.OTF
+          weight: 100
+          style: italic
+        - asset: assets/font/SFPRODISPLAYULTRALIGHTITALIC.OTF
+          weight: 200
+          style: italic
+        - asset: assets/font/SFPRODISPLAYLIGHTITALIC.OTF
+          weight: 300
+          style: italic
+        - asset: assets/font/SFPRODISPLAYSEMIBOLDITALIC.OTF
+          weight: 600
+          style: italic
+        - asset: assets/font/SFPRODISPLAYHEAVYITALIC.OTF
+          weight: 800
+          style: italic
+        - asset: assets/font/SFPRODISPLAYBLACKITALIC.OTF
+          weight: 900
+          style: italic
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

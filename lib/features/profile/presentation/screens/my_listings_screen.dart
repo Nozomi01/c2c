@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../../services/domain/models/service.dart';
 import '../../../services/presentation/providers/service_list_provider.dart';
 import '../../../services/presentation/widgets/service_card.dart';
@@ -42,7 +43,7 @@ class MyListingsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add_box_outlined, size: 64, color: AppColors.textSecondary),
+                  Icon(AppIcons.add_box_outlined, size: 64, color: AppColors.textSecondary),
                   SizedBox(height: 16),
                   Text(
                     '出品中のサービスはありません',
@@ -53,7 +54,7 @@ class MyListingsScreen extends ConsumerWidget {
             );
           }
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.screenPadding),
             itemCount: list.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (_, i) => ServiceCard(service: list[i]),
@@ -66,7 +67,7 @@ class MyListingsScreen extends ConsumerWidget {
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       leading: IconButton(
-        icon: const Icon(Icons.chevron_left),
+        icon: const Icon(AppIcons.chevron_left),
         onPressed: () => context.pop(),
       ),
       title: const Text(

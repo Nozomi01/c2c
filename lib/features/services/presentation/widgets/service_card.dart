@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../services/domain/models/service.dart';
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 
 class ServiceCard extends StatelessWidget {
   const ServiceCard({super.key, required this.service});
@@ -13,7 +14,7 @@ class ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppRadii.lg),
       onTap: () {
         context.pushNamed('serviceDetail', pathParameters: {'id': service.id});
       },
@@ -66,7 +67,7 @@ class ServiceCard extends StatelessWidget {
                           ),
                           const Spacer(),
                           const Icon(
-                            Icons.chevron_right,
+                            AppIcons.chevron_right,
                             color: AppColors.textSecondary,
                           ),
                         ],
@@ -91,7 +92,7 @@ class _ImageThumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+      borderRadius: const BorderRadius.horizontal(left: Radius.circular(AppRadii.lg)),
       child: SizedBox(
         width: 110,
         height: double.infinity,
@@ -99,7 +100,7 @@ class _ImageThumbnail extends StatelessWidget {
             ? Container(
                 color: AppColors.primarySoft,
                 child: const Icon(
-                  Icons.person,
+                  AppIcons.person,
                   color: AppColors.primary,
                 ),
               )
@@ -108,7 +109,7 @@ class _ImageThumbnail extends StatelessWidget {
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) => Container(
                   color: AppColors.primarySoft,
-                  child: const Icon(Icons.broken_image_outlined, color: AppColors.primary),
+                  child: const Icon(AppIcons.broken_image_outlined, color: AppColors.primary),
                 ),
               ),
       ),

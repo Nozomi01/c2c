@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 
 class IdentityVerifyScreen extends StatefulWidget {
   const IdentityVerifyScreen({super.key});
@@ -64,7 +65,7 @@ class _IdentityVerifyScreenState extends State<IdentityVerifyScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(AppIcons.chevron_left),
           onPressed: () => context.pop(),
         ),
         title: const Text(
@@ -86,7 +87,7 @@ class _IdentityVerifyScreenState extends State<IdentityVerifyScreen> {
               ? const Center(child: CircularProgressIndicator())
               : Padding(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -145,7 +146,7 @@ class _IdentityVerifyScreenState extends State<IdentityVerifyScreen> {
                             height: 180,
                             decoration: BoxDecoration(
                               color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(AppRadii.md),
                               border: Border.all(
                                 color: AppColors.border.withOpacity(0.7),
                               ),
@@ -154,7 +155,7 @@ class _IdentityVerifyScreenState extends State<IdentityVerifyScreen> {
                                 ? Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: const [
-                                      Icon(Icons.credit_card,
+                                      Icon(AppIcons.credit_card,
                                           size: 40,
                                           color: AppColors.textSecondary),
                                       SizedBox(height: 8),
@@ -168,7 +169,7 @@ class _IdentityVerifyScreenState extends State<IdentityVerifyScreen> {
                                     ],
                                   )
                                 : ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(AppRadii.md),
                                     child: Image.memory(
                                       _idImageBytes!,
                                       fit: BoxFit.cover,
@@ -192,7 +193,7 @@ class _IdentityVerifyScreenState extends State<IdentityVerifyScreen> {
                               padding:
                                   const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(AppRadii.sm),
                               ),
                             ),
                             child: const Text('本人確認を開始する'),
@@ -204,7 +205,7 @@ class _IdentityVerifyScreenState extends State<IdentityVerifyScreen> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: AppColors.primarySoft.withOpacity(0.6),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(AppRadii.sm),
                           ),
                           child: const Text(
                             '提出済みの書類を審査中です。しばらくお待ちください。',
@@ -220,7 +221,7 @@ class _IdentityVerifyScreenState extends State<IdentityVerifyScreen> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(AppRadii.sm),
                           ),
                           child: const Text(
                             '本人確認が完了しています。安心してサービスをご利用いただけます。',
@@ -268,7 +269,7 @@ class _IdentityVerifyScreenState extends State<IdentityVerifyScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadii.md),
           ),
           child: Text(
             label,

@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/config/app_links.dart';
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../providers/auth_providers.dart';
 
 class AuthGateScreen extends ConsumerWidget {
@@ -161,7 +163,7 @@ class _AuthLandingScreenState extends ConsumerState<_AuthLandingScreen> {
                   const Spacer(),
                   _LandingPrimaryButton(
                     label: 'Facebookで登録/ログイン',
-                    icon: Icons.facebook,
+                    icon: AppIcons.facebook,
                     iconColor: const Color(0xFF1877F3), // Facebook blue
                     onPressed: () {
                       _requireTerms(() {
@@ -177,7 +179,7 @@ class _AuthLandingScreenState extends ConsumerState<_AuthLandingScreen> {
                   if (defaultTargetPlatform == TargetPlatform.iOS)
                     _LandingPrimaryButton(
                       label: 'Appleで登録/ログイン',
-                      icon: Icons.apple,
+                      icon: AppIcons.apple,
                       onPressed: () {
                         _requireTermsAsync(() async {
                           try {
@@ -196,7 +198,7 @@ class _AuthLandingScreenState extends ConsumerState<_AuthLandingScreen> {
                   else
                     _LandingPrimaryButton(
                       label: 'Googleで登録/ログイン',
-                      icon: Icons.g_mobiledata_rounded,
+                      icon: AppIcons.g_mobiledata_rounded,
                       onPressed: () {
                         _requireTermsAsync(() async {
                           try {
@@ -218,7 +220,9 @@ class _AuthLandingScreenState extends ConsumerState<_AuthLandingScreen> {
                     children: [
                       _CircleIconButton(
                         color: const Color(0xFFFDC700),
-                        icon: Icons.phone_iphone,
+                        icon: Theme.of(context).platform == TargetPlatform.iOS
+                            ? CupertinoIcons.device_phone_portrait
+                            : AppIcons.phone_iphone,
                         onTap: () {
                           _requireTerms(() {
                             context.push('/auth/phone');
@@ -228,7 +232,9 @@ class _AuthLandingScreenState extends ConsumerState<_AuthLandingScreen> {
                       const SizedBox(width: 24),
                       _CircleIconButton(
                         color: const Color(0xFF06C755),
-                        icon: Icons.chat_bubble,
+                        icon: Theme.of(context).platform == TargetPlatform.iOS
+                            ? CupertinoIcons.chat_bubble_fill
+                            : AppIcons.chat_bubble,
                         onTap: () {
                           _requireTermsAsync(() async {
                             try {
@@ -359,7 +365,7 @@ class _LandingPrimaryButton extends StatelessWidget {
           backgroundColor: Colors.white,
           foregroundColor: Colors.black87,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(32),
+            borderRadius: BorderRadius.circular(AppRadii.jumbo),
           ),
         ),
       ),
@@ -382,20 +388,13 @@ class _CircleIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(AppRadii.xxxl),
       child: Container(
         width: 56,
         height: 56,
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: Icon(
           icon,

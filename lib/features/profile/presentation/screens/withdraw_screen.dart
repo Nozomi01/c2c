@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 
 class WithdrawScreen extends StatefulWidget {
   const WithdrawScreen({super.key});
@@ -32,7 +33,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(AppIcons.chevron_left),
           onPressed: () => context.pop(),
         ),
         title: const Text(
@@ -51,7 +52,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
       body: uid == null
           ? const Center(child: Text('ログインが必要です'))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.screenPadding),
               child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
                 builder: (context, snapshot) {
@@ -74,7 +75,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(AppRadii.sm),
                           border: Border.all(color: AppColors.border),
                         ),
                         child: Row(
@@ -128,10 +129,10 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                               '¥${NumberFormat('#,###').format(stripeAvailable)}';
                           return Container(
                             margin: const EdgeInsets.only(top: 8),
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(AppSpacing.screenPadding),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(AppRadii.sm),
                               border: Border.all(color: AppColors.border),
                             ),
                             child: Row(

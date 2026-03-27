@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/config/app_theme.dart';
 import '../providers/auth_providers.dart';
 
 class PhoneNumberScreen extends ConsumerStatefulWidget {
@@ -42,7 +43,7 @@ class _PhoneNumberScreenState extends ConsumerState<PhoneNumberScreen> {
         title: const Text('電話番号でログイン'),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Form(
           key: _formKey,
           child: Column(

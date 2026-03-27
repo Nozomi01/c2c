@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import '../core/config/app_theme.dart';
 
 class ShimmerList extends StatelessWidget {
   const ShimmerList({super.key, this.itemCount = 5});
@@ -16,12 +17,12 @@ class ShimmerList extends StatelessWidget {
           children: List.generate(
             itemCount,
             (index) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.sm),
               child: Container(
                 height: 110,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
               ),
             ),

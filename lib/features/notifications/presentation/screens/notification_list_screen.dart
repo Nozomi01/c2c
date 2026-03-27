@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../providers/notification_providers.dart';
 
 class NotificationListScreen extends ConsumerWidget {
@@ -40,7 +41,7 @@ class NotificationListScreen extends ConsumerWidget {
             );
           }
           return ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.sm),
             itemCount: items.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
@@ -88,12 +89,12 @@ class NotificationListScreen extends ConsumerWidget {
                 },
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: 14),
                   decoration: BoxDecoration(
                     color: n.read
                         ? Colors.grey.shade100
                         : AppColors.primarySoft.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
                     border: Border.all(
                       color: AppColors.border.withOpacity(0.5),
                     ),
@@ -121,7 +122,7 @@ class NotificationListScreen extends ConsumerWidget {
                             constraints:
                                 const BoxConstraints.tightFor(width: 32, height: 32),
                             icon: Icon(
-                              n.read ? Icons.mark_email_read : Icons.mark_email_unread,
+                              n.read ? AppIcons.mark_email_read : AppIcons.mark_email_unread_outlined,
                               color: n.read
                                   ? AppColors.textSecondary
                                   : AppColors.primary,
@@ -172,7 +173,7 @@ class NotificationListScreen extends ConsumerWidget {
   AppBar _buildAppBar(BuildContext context) {
     return AppBar(
       leading: IconButton(
-        icon: const Icon(Icons.chevron_left),
+        icon: const Icon(AppIcons.chevron_left),
         onPressed: () => Navigator.of(context).maybePop(),
       ),
       title: const Text(

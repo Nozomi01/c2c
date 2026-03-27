@@ -1,9 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../../notifications/presentation/providers/notification_providers.dart';
 import '../../../services/domain/models/service.dart';
 import '../../../services/presentation/providers/service_list_provider.dart';
@@ -22,7 +25,7 @@ class HomeScreen extends ConsumerWidget {
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.listHorizontal, AppSpacing.md, AppSpacing.listHorizontal, AppSpacing.sm),
                 child: Row(
                   children: [
                     Expanded(child: _SearchBar()),
@@ -36,7 +39,10 @@ class HomeScreen extends ConsumerWidget {
             const SliverToBoxAdapter(child: _PromoBanner()),
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
             SliverToBoxAdapter(
-              child: _SectionHeader(title: '新着ユーザーから探す', onTap: () {}),
+              child: _SectionHeader(
+                title: '新着ユーザーから探す',
+                onTap: () => context.go('/listings'),
+              ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
             const SliverToBoxAdapter(child: _NewUsersRow()),
@@ -49,7 +55,7 @@ class HomeScreen extends ConsumerWidget {
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
             SliverToBoxAdapter(
               child: _SectionHeader(
-                title: '新着出品から探す',
+                title: '掲示板から探す',
                 onTap: () => context.go('/listings'),
               ),
             ),
@@ -60,7 +66,7 @@ class HomeScreen extends ConsumerWidget {
                 child: servicesAsync.when(
                   data: (services) => ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal),
                     itemCount: services.length,
                     itemBuilder: (context, index) {
                       return RepaintBoundary(
@@ -115,20 +121,22 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.border.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
         ),
         child: TextField(
           controller: _controller,
           onSubmitted: (_) => _goToSearch(),
           decoration: InputDecoration(
-            hintText: 'サービスを検索',
+            hintText: 'ユーザーを検索',
             hintStyle: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             prefixIcon: Icon(
-              Icons.search,
+              Theme.of(context).platform == TargetPlatform.iOS
+                  ? CupertinoIcons.search
+                  : AppIcons.search,
               size: 22,
               color: AppColors.textSecondary,
             ),
@@ -160,7 +168,12 @@ class _NotificationButton extends ConsumerWidget {
       children: [
         IconButton(
           onPressed: () => context.push('/notifications'),
-          icon: const Icon(Icons.notifications_outlined, size: 26),
+          icon: Icon(
+            Theme.of(context).platform == TargetPlatform.iOS
+                ? CupertinoIcons.bell
+                : AppIcons.notifications_outlined,
+            size: 26,
+          ),
         ),
         if (showBadge)
           Positioned(
@@ -175,7 +188,7 @@ class _NotificationButton extends ConsumerWidget {
               decoration: const BoxDecoration(
                 color: Colors.red,
                 shape: BoxShape.rectangle,
-                borderRadius: BorderRadius.all(Radius.circular(9)),
+                borderRadius: BorderRadius.all(Radius.circular(AppRadii.xs)),
               ),
               alignment: Alignment.center,
               child: Text(
@@ -200,17 +213,10 @@ class _PromoBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 72,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppRadii.sm),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -238,10 +244,10 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadii.xs),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
@@ -256,7 +262,9 @@ class _SectionHeader extends StatelessWidget {
               ),
               const Spacer(),
               Icon(
-                Icons.arrow_forward_ios,
+                Theme.of(context).platform == TargetPlatform.iOS
+                    ? CupertinoIcons.chevron_right
+                    : AppIcons.chevron_right,
                 size: 14,
                 color: AppColors.textSecondary,
               ),
@@ -271,59 +279,153 @@ class _SectionHeader extends StatelessWidget {
 class _NewUsersRow extends StatelessWidget {
   const _NewUsersRow();
 
-  static const _placeholderNames = ['中村麻里子', '山田花子', '佐藤美咲', '鈴木さくら', '高橋あおい'];
-
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 100,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _placeholderNames.length,
-        itemBuilder: (context, index) {
-          return Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFFE3F2FD),
-                    border: Border.all(
-                      color: const Color(0xFFBBDEFB),
-                      width: 2,
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 28,
-                    color: Color(0xFF64B5F6),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                SizedBox(
-                  width: 72,
-                  child: Text(
-                    _placeholderNames[index],
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-              ],
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('users').limit(40).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 100,
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        }
+        if (snapshot.hasError) {
+          return const SizedBox(
+            height: 100,
+            child: Center(
+              child: Text(
+                '新着ユーザーを取得できませんでした',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
             ),
           );
-        },
-      ),
+        }
+
+        final users = (snapshot.data?.docs ?? const [])
+            .map(_NewUserItem.fromDoc)
+            .where((u) => u.displayName.isNotEmpty)
+            .toList();
+
+        users.sort((a, b) => b.sortDate.compareTo(a.sortDate));
+        final newUsers = users.take(12).toList();
+
+        if (newUsers.isEmpty) {
+          return const SizedBox(
+            height: 100,
+            child: Center(
+              child: Text(
+                '表示できるユーザーがいません',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ),
+          );
+        }
+
+        return SizedBox(
+          height: 100,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal),
+            itemCount: newUsers.length,
+            itemBuilder: (context, index) {
+              final user = newUsers[index];
+              return Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.listHorizontal),
+                child: InkWell(
+                  onTap: () => context.push('/people/${user.userId}'),
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFE3F2FD),
+                          border: Border.all(
+                            color: const Color(0xFFBBDEFB),
+                            width: 2,
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: user.photoUrl.isEmpty
+                              ? Icon(
+                                  Theme.of(context).platform == TargetPlatform.iOS
+                                      ? CupertinoIcons.person_fill
+                                      : AppIcons.person,
+                                  size: 28,
+                                  color: const Color(0xFF64B5F6),
+                                )
+                              : CachedNetworkImage(
+                                  imageUrl: user.photoUrl,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, __, ___) => Icon(
+                                    Theme.of(context).platform == TargetPlatform.iOS
+                                        ? CupertinoIcons.person_fill
+                                        : AppIcons.person,
+                                    size: 28,
+                                    color: const Color(0xFF64B5F6),
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        width: 72,
+                        child: Text(
+                          user.displayName,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
+  }
+}
+
+class _NewUserItem {
+  const _NewUserItem({
+    required this.userId,
+    required this.displayName,
+    required this.photoUrl,
+    required this.sortDate,
+  });
+
+  final String userId;
+  final String displayName;
+  final String photoUrl;
+  final DateTime sortDate;
+
+  factory _NewUserItem.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? const <String, dynamic>{};
+    return _NewUserItem(
+      userId: doc.id,
+      displayName: (data['displayName'] as String?)?.trim() ?? '',
+      photoUrl: (data['photoURL'] as String?)?.trim() ?? '',
+      sortDate: _readDate(data['createdAt']) ??
+          _readDate(data['updatedAt']) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+    );
+  }
+
+  static DateTime? _readDate(dynamic raw) {
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is DateTime) return raw;
+    return null;
   }
 }
 
@@ -342,7 +444,7 @@ class _CategoryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal),
       child: GridView.count(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -356,12 +458,12 @@ class _CategoryGrid extends StatelessWidget {
             onTap: () {
               context.push('/listings/category?name=$categoryKey');
             },
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadii.sm),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
               decoration: BoxDecoration(
                 color: color,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
               ),
               child: Center(
                 child: Text(
@@ -394,7 +496,7 @@ class _NewListingCard extends StatelessWidget {
     final imageUrl = service.images.isNotEmpty ? service.images.first : null;
     return InkWell(
       onTap: () => context.push('/services/${service.id}'),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
       child: SizedBox(
         width: 140,
         child: Column(
@@ -402,15 +504,17 @@ class _NewListingCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AppRadii.sm),
               child: SizedBox(
                 width: 140,
                 height: 120,
                 child: imageUrl == null
                     ? Container(
                         color: AppColors.primarySoft,
-                        child: const Icon(
-                          Icons.image,
+                        child: Icon(
+                          Theme.of(context).platform == TargetPlatform.iOS
+                              ? CupertinoIcons.photo
+                              : AppIcons.image,
                           color: AppColors.primary,
                           size: 40,
                         ),
@@ -420,7 +524,13 @@ class _NewListingCard extends StatelessWidget {
                         fit: BoxFit.cover,
                         errorWidget: (_, __, ___) => Container(
                           color: AppColors.primarySoft,
-                          child: const Icon(Icons.broken_image_outlined, color: AppColors.primary, size: 40),
+                          child: Icon(
+                            Theme.of(context).platform == TargetPlatform.iOS
+                                ? CupertinoIcons.photo_fill_on_rectangle_fill
+                                : AppIcons.broken_image_outlined,
+                            color: AppColors.primary,
+                            size: 40,
+                          ),
                         ),
                       ),
               ),

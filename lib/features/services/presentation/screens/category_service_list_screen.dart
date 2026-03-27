@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../providers/service_list_provider.dart';
 import '../widgets/service_card.dart';
 import '../../../../widgets/shimmer_list.dart';
@@ -39,7 +40,7 @@ class _CategoryServiceListScreenState
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(AppIcons.chevron_left),
           onPressed: () => context.pop(),
         ),
         title: Text(
@@ -65,14 +66,14 @@ class _CategoryServiceListScreenState
             SliverToBoxAdapter(
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.md),
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
                     hintText: 'キーワードで絞り込む',
-                    prefixIcon: const Icon(Icons.search, size: 20),
+                    prefixIcon: const Icon(AppIcons.search, size: 20),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
                     ),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(
@@ -101,7 +102,7 @@ class _CategoryServiceListScreenState
                 if (filtered.isEmpty) {
                   return const SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.all(24),
+                      padding: EdgeInsets.all(AppSpacing.xl),
                       child: Center(
                         child: Text(
                           '条件に合う出品がありません',
@@ -125,7 +126,7 @@ class _CategoryServiceListScreenState
               loading: () => const ShimmerList(),
               error: (e, st) => SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.screenPadding),
                   child: Text('読み込みに失敗しました: $e'),
                 ),
               ),

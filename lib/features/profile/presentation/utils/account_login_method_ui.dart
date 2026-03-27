@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/ui/app_icons.dart';
 
 /// One linked sign-in method shown on account settings (multi-provider aware).
 class AccountLoginMethodUi {
@@ -68,7 +69,7 @@ class AccountLoginMethodUi {
           subtitle: _nonEmpty(info.email) ??
               _nonEmpty(user.email) ??
               '連携済み',
-          icon: Icons.g_mobiledata_rounded,
+          icon: AppIcons.g_mobiledata_rounded,
           infoMessage:
               'Googleアカウントと連携しています。\n'
               'メールアドレスの変更はGoogleアカウントの設定から行ってください。',
@@ -80,7 +81,7 @@ class AccountLoginMethodUi {
           subtitle: _nonEmpty(info.email) ??
               _nonEmpty(user.email) ??
               'Apple ID',
-          icon: Icons.apple,
+          icon: AppIcons.apple,
           infoMessage:
               'Appleでサインインと連携しています。\n'
               'メールの公開はApple IDの設定に従います。',
@@ -90,7 +91,7 @@ class AccountLoginMethodUi {
         return AccountLoginMethodUi(
           label: 'メール / パスワード',
           subtitle: _nonEmpty(info.email) ?? _nonEmpty(user.email) ?? '未設定',
-          icon: Icons.alternate_email_outlined,
+          icon: AppIcons.alternate_email_outlined,
           infoMessage: 'メールアドレスとパスワードでログインしています。変更機能は準備中です。',
           isPrimary: isPrimary,
         );
@@ -101,7 +102,7 @@ class AccountLoginMethodUi {
               _nonEmpty(user.email) ??
               user.displayName ??
               '連携済み',
-          icon: Icons.facebook_outlined,
+          icon: AppIcons.facebook_outlined,
           infoMessage: 'Facebookアカウントと連携しています。',
           isPrimary: isPrimary,
         );
@@ -111,7 +112,7 @@ class AccountLoginMethodUi {
           subtitle: _nonEmpty(user.displayName) ??
               _nonEmpty(user.email) ??
               'LINEでログイン中',
-          icon: Icons.chat_bubble_outline,
+          icon: AppIcons.chat_bubble_outline,
           infoMessage:
               'LINEアカウント（カスタムトークン）でログインしています。表示名の変更はプロフィール編集から行えます。',
           isPrimary: isPrimary,
@@ -123,7 +124,7 @@ class AccountLoginMethodUi {
               _nonEmpty(info.phoneNumber) ??
               _nonEmpty(user.email) ??
               '連携済み',
-          icon: Icons.link,
+          icon: AppIcons.link,
           infoMessage: 'このプロバイダーと連携しています。',
           isPrimary: isPrimary,
         );

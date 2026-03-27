@@ -1,10 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
+import '../../../../core/ui/platform_adaptive.dart';
 import '../../../auth/data/auth_repository.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../providers/profile_mode_provider.dart';
@@ -24,7 +27,7 @@ class AccountSettingsScreen extends ConsumerWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(AppIcons.chevron_left),
           onPressed: () => context.pop(),
         ),
         title: const Text(
@@ -55,7 +58,7 @@ class AccountSettingsScreen extends ConsumerWidget {
                     linkedMethods.isNotEmpty || linkAvailability.hasAny;
                 return SingleChildScrollView(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.sm),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -82,12 +85,12 @@ class AccountSettingsScreen extends ConsumerWidget {
                       ButtonSegment<ProfileMode>(
                         value: ProfileMode.buyer,
                         label: Text('購入者'),
-                        icon: Icon(Icons.shopping_bag_outlined, size: 18),
+                        icon: Icon(AppIcons.shopping_bag_outlined, size: 18),
                       ),
                       ButtonSegment<ProfileMode>(
                         value: ProfileMode.seller,
                         label: Text('出品者'),
-                        icon: Icon(Icons.storefront_outlined, size: 18),
+                        icon: Icon(AppIcons.storefront_outlined, size: 18),
                       ),
                     ],
                     selected: {mode},
@@ -109,7 +112,7 @@ class AccountSettingsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                   _SettingsTile(
-                    icon: Icons.person_outline,
+                    icon: AppIcons.person_outline,
                     label: 'プロフィール編集',
                     subtitle: '名前・アイコンを変更',
                     onTap: () => context.push('/settings/profile'),
@@ -146,22 +149,12 @@ class AccountSettingsScreen extends ConsumerWidget {
                           subtitle: entry.value.subtitle,
                           onTap: () {
                             final m = entry.value;
-                            showDialog<void>(
+                            showPlatformInfoDialog(
                               context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: Text(m.label),
-                                content: Text(
-                                  m.isPrimary
-                                      ? '${m.infoMessage}\n\n※「メイン」はこのアカウントで主なログイン方法として扱われているものです。'
-                                      : m.infoMessage,
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(ctx),
-                                    child: const Text('閉じる'),
-                                  ),
-                                ],
-                              ),
+                              title: m.label,
+                              message: m.isPrimary
+                                  ? '${m.infoMessage}\n\n※「メイン」はこのアカウントで主なログイン方法として扱われているものです。'
+                                  : m.infoMessage,
                             );
                           },
                         ),
@@ -190,7 +183,7 @@ class AccountSettingsScreen extends ConsumerWidget {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: _SettingsTile(
-                            icon: Icons.g_mobiledata_rounded,
+                            icon: AppIcons.g_mobiledata_rounded,
                             label: 'Googleを追加',
                             subtitle: 'Googleアカウントを連携',
                             onTap: () => _runOAuthLink(
@@ -202,7 +195,7 @@ class AccountSettingsScreen extends ConsumerWidget {
                         ),
                       if (linkAvailability.canAddApple)
                         _SettingsTile(
-                          icon: Icons.apple,
+                          icon: AppIcons.apple,
                           label: 'Appleを追加',
                           subtitle: 'Appleでサインインを連携',
                           onTap: () => _runOAuthLink(
@@ -216,7 +209,7 @@ class AccountSettingsScreen extends ConsumerWidget {
                   ] else
                     const SizedBox(height: 8),
                   _SettingsTile(
-                    icon: Icons.phone_android_outlined,
+                    icon: AppIcons.phone_android_outlined,
                     label: '電話番号',
                     subtitle: user.phoneNumber ?? '未設定',
                     onTap: () => context.push('/settings/phone'),
@@ -226,29 +219,19 @@ class AccountSettingsScreen extends ConsumerWidget {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        final ok = await showDialog<bool>(
+                        final ok = await showPlatformAlertDialog<bool>(
                           context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('ログアウト'),
-                            content: const Text('ログアウトしますか？'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('キャンセル'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('ログアウト'),
-                              ),
-                            ],
-                          ),
+                          title: 'ログアウト',
+                          message: 'ログアウトしますか？',
+                          cancelText: 'キャンセル',
+                          confirmText: 'ログアウト',
                         );
                         if (ok == true && context.mounted) {
                           await ref.read(authRepositoryProvider).signOut();
                           if (context.mounted) context.go('/');
                         }
                       },
-                      icon: const Icon(Icons.logout, size: 20),
+                      icon: const Icon(AppIcons.logout, size: 20),
                       label: const Text('ログアウト'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.textPrimary,
@@ -300,14 +283,14 @@ class _SettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.grey.shade100,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadii.sm),
             border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
           ),
           child: Row(
@@ -341,7 +324,7 @@ class _SettingsTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
+              Icon(AppIcons.chevron_right, size: 20, color: AppColors.textSecondary),
             ],
           ),
         ),
@@ -358,12 +341,17 @@ Future<void> _runOAuthLink(
   showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => const PopScope(
-      canPop: false,
-      child: Center(
-        child: CircularProgressIndicator(),
-      ),
-    ),
+    builder: (_) {
+      final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+      return PopScope(
+        canPop: false,
+        child: Center(
+          child: isIOS
+              ? const CupertinoActivityIndicator(radius: 14)
+              : const CircularProgressIndicator(),
+        ),
+      );
+    },
   );
   try {
     final repo = ref.read(authRepositoryProvider);

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../../services/domain/models/service.dart';
 import '../../../services/presentation/providers/service_detail_provider.dart';
 import '../../domain/models/transaction.dart';
@@ -48,7 +49,7 @@ class _RateTransactionScreenState extends ConsumerState<RateTransactionScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(AppIcons.arrow_back),
           onPressed: () => _safePop(context),
         ),
         title: const Text('取引相手を評価'),
@@ -66,7 +67,7 @@ class _RateTransactionScreenState extends ConsumerState<RateTransactionScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.xl),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -161,7 +162,7 @@ class _Content extends ConsumerWidget {
               return IconButton(
                 onPressed: () => onRatingChanged(value),
                 icon: Icon(
-                  selected ? Icons.star : Icons.star_border,
+                  selected ? AppIcons.star : AppIcons.star_border,
                   size: 40,
                   color: selected ? AppColors.primary : AppColors.textSecondary,
                 ),
@@ -201,7 +202,7 @@ class _Content extends ConsumerWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFFE3F2FD),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadii.xs),
             ),
             child: const Text(
               '評価は取引完了後に公開されます。相手の評価も確認できるようになります。',
@@ -221,7 +222,7 @@ class _Content extends ConsumerWidget {
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
                 ),
               ),
               child: const Text('評価を送信'),
@@ -246,27 +247,27 @@ class _ProductCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadii.xs),
             child: SizedBox(
               width: 72,
               height: 72,
               child: imageUrl == null
                   ? Container(
                       color: AppColors.primarySoft,
-                      child: const Icon(Icons.image, color: AppColors.primary),
+                      child: const Icon(AppIcons.image, color: AppColors.primary),
                     )
                   : CachedNetworkImage(
                       imageUrl: imageUrl,
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) => Container(
                         color: AppColors.primarySoft,
-                        child: const Icon(Icons.broken_image_outlined, color: AppColors.primary),
+                        child: const Icon(AppIcons.broken_image_outlined, color: AppColors.primary),
                       ),
                     ),
             ),
@@ -318,7 +319,7 @@ class _ProductCardPlaceholder extends StatelessWidget {
       height: 96,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         border: Border.all(color: AppColors.border),
       ),
       child: const Center(child: CircularProgressIndicator()),

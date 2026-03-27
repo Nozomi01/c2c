@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 
 class DraftsListScreen extends StatelessWidget {
   const DraftsListScreen({super.key});
@@ -13,7 +14,7 @@ class DraftsListScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(AppIcons.chevron_left),
           onPressed: () => context.pop(),
         ),
         title: const Text(
@@ -35,7 +36,7 @@ class DraftsListScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.edit_note, size: 64, color: AppColors.textSecondary),
+                  Icon(AppIcons.edit_note, size: 64, color: AppColors.textSecondary),
                   SizedBox(height: 16),
                   Text(
                     '下書きはありません',

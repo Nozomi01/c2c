@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 /// アカウント設定から電話番号を紐付け／変更する（ログインフローとは別）。
@@ -71,7 +72,7 @@ class _PhoneNumberEditScreenState extends ConsumerState<PhoneNumberEditScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(AppIcons.chevron_left),
           onPressed: () {
             if (_otpStep) {
               setState(() {

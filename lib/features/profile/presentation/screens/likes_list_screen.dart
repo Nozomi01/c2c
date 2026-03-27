@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../../services/domain/models/service.dart';
 import '../providers/profile_mode_provider.dart';
 
@@ -39,7 +40,7 @@ class LikesListScreen extends ConsumerWidget {
 PreferredSizeWidget _likesAppBar(BuildContext context, {required String title}) {
   return AppBar(
     leading: IconButton(
-      icon: const Icon(Icons.chevron_left),
+      icon: const Icon(AppIcons.chevron_left),
       onPressed: () => Navigator.of(context).pop(),
     ),
     title: Text(
@@ -88,7 +89,7 @@ class _BuyerFavoritesPage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.favorite_border, size: 64, color: AppColors.textSecondary),
+                  Icon(AppIcons.favorite_border, size: 64, color: AppColors.textSecondary),
                   SizedBox(height: 16),
                   Text(
                     'いいねしたサービスはありません',
@@ -217,7 +218,7 @@ class _BuyerFavoritesScrollBodyState extends State<_BuyerFavoritesScrollBody> {
 
     return ListView.separated(
       controller: _scrollController,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.screenPadding),
       itemCount: _items.length + (_hasMore ? 1 : 0),
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
@@ -237,21 +238,21 @@ class _BuyerFavoritesScrollBodyState extends State<_BuyerFavoritesScrollBody> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadii.xs),
                   child: SizedBox(
                     width: 72,
                     height: 72,
                     child: img == null || img.isEmpty
                         ? Container(
                             color: AppColors.primarySoft,
-                            child: const Icon(Icons.image, color: AppColors.primary),
+                            child: const Icon(AppIcons.image, color: AppColors.primary),
                           )
                         : CachedNetworkImage(
                             imageUrl: img,
                             fit: BoxFit.cover,
                             errorWidget: (_, __, ___) => Container(
                               color: AppColors.primarySoft,
-                              child: const Icon(Icons.broken_image_outlined,
+                              child: const Icon(AppIcons.broken_image_outlined,
                                   color: AppColors.primary),
                             ),
                           ),
@@ -284,7 +285,7 @@ class _BuyerFavoritesScrollBodyState extends State<_BuyerFavoritesScrollBody> {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                const Icon(AppIcons.chevron_right, color: AppColors.textSecondary),
               ],
             ),
           ),
@@ -319,7 +320,7 @@ class _SellerLikersPage extends StatelessWidget {
           if (serviceSnap.hasError) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.screenPadding),
                 child: Text(
                   'サービス一覧の取得に失敗しました: ${serviceSnap.error}',
                   textAlign: TextAlign.center,
@@ -514,7 +515,7 @@ class _SellerLikersScrollBodyState extends State<_SellerLikersScrollBody> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.favorite_border, size: 64, color: AppColors.textSecondary),
+            Icon(AppIcons.favorite_border, size: 64, color: AppColors.textSecondary),
             SizedBox(height: 16),
             Text(
               'いいねしてくれているユーザーはいません',
@@ -531,7 +532,7 @@ class _SellerLikersScrollBodyState extends State<_SellerLikersScrollBody> {
 
     return ListView.separated(
       controller: _scrollController,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.screenPadding),
       itemCount: showCount + ((hasMoreList && _loading) ? 1 : 0),
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
@@ -567,7 +568,7 @@ class _SellerLikersScrollBodyState extends State<_SellerLikersScrollBody> {
                       errorWidget: (_, __, ___) => Container(
                         color: AppColors.primarySoft,
                         alignment: Alignment.center,
-                        child: const Icon(Icons.person, color: AppColors.primary),
+                        child: const Icon(AppIcons.person, color: AppColors.primary),
                       ),
                     ),
             ),
@@ -586,7 +587,7 @@ class _SellerLikersScrollBodyState extends State<_SellerLikersScrollBody> {
               ),
               if (u.verified) ...[
                 const SizedBox(width: 6),
-                const Icon(Icons.verified, size: 16, color: Colors.green),
+                const Icon(AppIcons.verified, size: 16, color: Colors.green),
               ],
             ],
           ),

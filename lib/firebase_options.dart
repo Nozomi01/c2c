@@ -60,24 +60,24 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyB3Q38laEri4yW9j2SAkcbgAybWrRcUvpU',
-    appId: '1:1060651929162:ios:acfd88173e64ecb92720b3',
+    appId: '1:1060651929162:ios:d0a1de84dce38cf12720b3',
     messagingSenderId: '1060651929162',
     projectId: 'wanty-d606b',
     storageBucket: 'wanty-d606b.firebasestorage.app',
     androidClientId: '1060651929162-q7r0mso7ct87r56ub06reo62p26ns3hf.apps.googleusercontent.com',
-    iosClientId: '1060651929162-j6kvj5j2archpg0qbv59obmchir3ofie.apps.googleusercontent.com',
-    iosBundleId: 'com.example.c2c',
+    iosClientId: '1060651929162-u0r2e9qko8ggf8vi3m169nmdagufpugr.apps.googleusercontent.com',
+    iosBundleId: 'com.wanty.service',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyB3Q38laEri4yW9j2SAkcbgAybWrRcUvpU',
-    appId: '1:1060651929162:ios:acfd88173e64ecb92720b3',
+    appId: '1:1060651929162:ios:d0a1de84dce38cf12720b3',
     messagingSenderId: '1060651929162',
     projectId: 'wanty-d606b',
     storageBucket: 'wanty-d606b.firebasestorage.app',
     androidClientId: '1060651929162-q7r0mso7ct87r56ub06reo62p26ns3hf.apps.googleusercontent.com',
-    iosClientId: '1060651929162-j6kvj5j2archpg0qbv59obmchir3ofie.apps.googleusercontent.com',
-    iosBundleId: 'com.example.c2c',
+    iosClientId: '1060651929162-u0r2e9qko8ggf8vi3m169nmdagufpugr.apps.googleusercontent.com',
+    iosBundleId: 'com.wanty.service',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

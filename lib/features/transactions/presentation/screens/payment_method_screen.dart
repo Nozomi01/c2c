@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 import '../../../services/domain/models/service.dart';
 import '../../../services/presentation/providers/service_detail_provider.dart';
 import '../../domain/models/transaction.dart';
@@ -38,7 +39,7 @@ class _PaymentMethodScreenState extends ConsumerState<PaymentMethodScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(AppIcons.arrow_back),
           onPressed: () => context.pop(),
         ),
         title: const Text('支払い方法'),
@@ -146,7 +147,7 @@ class _Content extends StatelessWidget {
     final price = transaction.price;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.screenPadding),
       child: RepaintBoundary(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,7 +166,7 @@ class _Content extends StatelessWidget {
           _PaymentOption(
             index: 0,
             selectedIndex: selectedIndex,
-            icon: Icons.credit_card,
+            icon: AppIcons.credit_card,
             label: 'クレジットカード / デビットカード',
             sublabel: hasStripeSecret ? 'Stripeで安全に支払います' : null,
             onTap: () => onSelectIndex(0),
@@ -180,17 +181,10 @@ class _Content extends StatelessWidget {
             ),
           const SizedBox(height: 24),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.screenPadding),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(AppRadii.sm),
             ),
             child: Column(
               children: [
@@ -216,7 +210,7 @@ class _Content extends StatelessWidget {
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
                 ),
               ),
               child: const Text('支払う'),
@@ -241,33 +235,26 @@ class _ProductCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppRadii.sm),
       ),
       child: Row(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadii.xs),
             child: SizedBox(
               width: 80,
               height: 80,
               child: imageUrl == null
                   ? Container(
                       color: AppColors.primarySoft,
-                      child: const Icon(Icons.image, color: AppColors.primary),
+                      child: const Icon(AppIcons.image, color: AppColors.primary),
                     )
                   : CachedNetworkImage(
                       imageUrl: imageUrl,
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) => Container(
                         color: AppColors.primarySoft,
-                        child: const Icon(Icons.broken_image_outlined, color: AppColors.primary),
+                        child: const Icon(AppIcons.broken_image_outlined, color: AppColors.primary),
                       ),
                     ),
             ),
@@ -327,12 +314,12 @@ class _PaymentOption extends StatelessWidget {
     final isSelected = selectedIndex == index;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.border,
             width: isSelected ? 2 : 1,

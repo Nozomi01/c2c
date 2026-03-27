@@ -118,6 +118,18 @@ class PhoneAuthController extends StateNotifier<PhoneAuthState> {
   void reset() {
     state = const PhoneAuthState();
   }
+
+  void seedVerificationContext({
+    required String verificationId,
+    String? phoneNumber,
+  }) {
+    final shouldSeed = state.verificationId == null || state.verificationId!.isEmpty;
+    if (!shouldSeed) return;
+    state = state.copyWith(
+      verificationId: verificationId.isNotEmpty ? verificationId : null,
+      lastVerifiedPhoneNumber: phoneNumber ?? state.lastVerifiedPhoneNumber,
+    );
+  }
 }
 
 String _userFriendlyPhoneUpdateError(FirebaseAuthException e) {

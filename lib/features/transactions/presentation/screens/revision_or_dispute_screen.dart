@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/app_theme.dart';
+import '../../../../core/ui/app_icons.dart';
 
 class RevisionOrDisputeScreen extends ConsumerStatefulWidget {
   const RevisionOrDisputeScreen({
@@ -67,7 +68,7 @@ class _RevisionOrDisputeScreenState
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(AppIcons.chevron_left),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
@@ -85,7 +86,7 @@ class _RevisionOrDisputeScreenState
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.screenPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -152,7 +153,7 @@ class _RevisionOrDisputeScreenState
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF3CD),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadii.xs),
                 ),
                 child: const Text(
                   '修正依頼・問題報告の内容は、出品者および運営が確認します。'
@@ -174,7 +175,7 @@ class _RevisionOrDisputeScreenState
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
                     ),
                   ),
                   child: Text(_submitting ? '送信中...' : '送信する'),
