@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dropdown_flutter/custom_dropdown.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -268,6 +269,22 @@ class _AdvancedSearchSheetState extends State<_AdvancedSearchSheet> {
   late bool _onlyWithRate;
   late String _location;
   late String _availability;
+  static const _minRateOptions = [
+    _RateOption(null, '指定なし'),
+    _RateOption(1000, '¥1,000'),
+    _RateOption(3000, '¥3,000'),
+    _RateOption(5000, '¥5,000'),
+    _RateOption(8000, '¥8,000'),
+    _RateOption(10000, '¥10,000'),
+  ];
+  static const _maxRateOptions = [
+    _RateOption(null, '指定なし'),
+    _RateOption(3000, '¥3,000'),
+    _RateOption(5000, '¥5,000'),
+    _RateOption(8000, '¥8,000'),
+    _RateOption(10000, '¥10,000'),
+    _RateOption(15000, '¥15,000'),
+  ];
 
   @override
   void initState() {
@@ -334,34 +351,40 @@ class _AdvancedSearchSheetState extends State<_AdvancedSearchSheet> {
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<int?>(
-                    initialValue: _minRate,
-                    decoration: const InputDecoration(labelText: '最低'),
-                    items: const [
-                      DropdownMenuItem<int?>(value: null, child: Text('指定なし')),
-                      DropdownMenuItem<int?>(value: 1000, child: Text('¥1,000')),
-                      DropdownMenuItem<int?>(value: 3000, child: Text('¥3,000')),
-                      DropdownMenuItem<int?>(value: 5000, child: Text('¥5,000')),
-                      DropdownMenuItem<int?>(value: 8000, child: Text('¥8,000')),
-                      DropdownMenuItem<int?>(value: 10000, child: Text('¥10,000')),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('最低', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      const SizedBox(height: 4),
+                      DropdownFlutter<_RateOption>(
+                        hintText: '最低',
+                        items: _minRateOptions,
+                        initialItem: _minRateOptions.firstWhere(
+                          (e) => e.value == _minRate,
+                          orElse: () => _minRateOptions.first,
+                        ),
+                        onChanged: (v) => setState(() => _minRate = v?.value),
+                      ),
                     ],
-                    onChanged: (v) => setState(() => _minRate = v),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: DropdownButtonFormField<int?>(
-                    initialValue: _maxRate,
-                    decoration: const InputDecoration(labelText: '最高'),
-                    items: const [
-                      DropdownMenuItem<int?>(value: null, child: Text('指定なし')),
-                      DropdownMenuItem<int?>(value: 3000, child: Text('¥3,000')),
-                      DropdownMenuItem<int?>(value: 5000, child: Text('¥5,000')),
-                      DropdownMenuItem<int?>(value: 8000, child: Text('¥8,000')),
-                      DropdownMenuItem<int?>(value: 10000, child: Text('¥10,000')),
-                      DropdownMenuItem<int?>(value: 15000, child: Text('¥15,000')),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('最高', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      const SizedBox(height: 4),
+                      DropdownFlutter<_RateOption>(
+                        hintText: '最高',
+                        items: _maxRateOptions,
+                        initialItem: _maxRateOptions.firstWhere(
+                          (e) => e.value == _maxRate,
+                          orElse: () => _maxRateOptions.first,
+                        ),
+                        onChanged: (v) => setState(() => _maxRate = v?.value),
+                      ),
                     ],
-                    onChanged: (v) => setState(() => _maxRate = v),
                   ),
                 ),
               ],
@@ -497,6 +520,15 @@ class _AdvancedSearchFilter {
     }
     return true;
   }
+}
+
+class _RateOption {
+  const _RateOption(this.value, this.label);
+  final int? value;
+  final String label;
+
+  @override
+  String toString() => label;
 }
 
 class _BoardCard extends StatelessWidget {

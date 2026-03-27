@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dropdown_flutter/custom_dropdown.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +33,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   late final TextEditingController _availabilityController;
   late final TextEditingController _experienceYearsController;
   String _gender = 'unspecified';
+  static const _genderOptions = [
+    _GenderOption('unspecified', '未設定'),
+    _GenderOption('male', '男性'),
+    _GenderOption('female', '女性'),
+    _GenderOption('other', 'その他'),
+  ];
 
   Uint8List? _avatarBytes;
   bool _saving = false;
@@ -284,22 +291,24 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                         const SizedBox(height: 24),
                         _sectionLabel('詳細情報'),
                         const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          value: _gender,
-                          decoration: const InputDecoration(
-                            labelText: '性別',
+                        IgnorePointer(
+                          ignoring: _saving,
+                          child: Opacity(
+                            opacity: _saving ? 0.6 : 1,
+                            child: DropdownFlutter<_GenderOption>(
+                              hintText: '性別',
+                              items: _genderOptions,
+                              initialItem: _genderOptions.firstWhere(
+                                (e) => e.value == _gender,
+                                orElse: () => _genderOptions.first,
+                              ),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setState(() => _gender = v.value);
+                                }
+                              },
+                            ),
                           ),
-                          items: const [
-                            DropdownMenuItem(value: 'unspecified', child: Text('未設定')),
-                            DropdownMenuItem(value: 'male', child: Text('男性')),
-                            DropdownMenuItem(value: 'female', child: Text('女性')),
-                            DropdownMenuItem(value: 'other', child: Text('その他')),
-                          ],
-                          onChanged: _saving
-                              ? null
-                              : (v) {
-                                  if (v != null) setState(() => _gender = v);
-                                },
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -456,4 +465,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       }
     }
   }
+}
+
+class _GenderOption {
+  const _GenderOption(this.value, this.label);
+  final String value;
+  final String label;
+
+  @override
+  String toString() => label;
 }

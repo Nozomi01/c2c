@@ -433,12 +433,12 @@ class _CategoryGrid extends StatelessWidget {
   const _CategoryGrid();
 
   static const _categories = [
-    ('💬 トーク・雑談', 'トーク・雑談', Color(0xFFFFF9C4)),
-    ('💡 相談・アドバイス', '相談・アドバイス', Color(0xFFB3E5FC)),
-    ('☕ カフェ・ご飯', 'カフェ・ご飯', Color(0xFFF8BBD9)),
-    ('🎮 趣味・遊び', '趣味・遊び', Color(0xFFE1BEE7)),
-    ('🚶 お出かけ・同行', 'お出かけ・同行', Color(0xFFC8E6C9)),
-    ('🌟 その他', 'その他', Color(0xFFFFCCBC)),
+    (_CategoryIconSet(CupertinoIcons.chat_bubble_2, AppIcons.chat_bubble_outline), 'トーク・雑談', Color(0xFFFFF9C4)),
+    (_CategoryIconSet(CupertinoIcons.lightbulb, AppIcons.lightbulb_outline), '相談・アドバイス', Color(0xFFB3E5FC)),
+    (_CategoryIconSet(CupertinoIcons.bag, AppIcons.restaurant_outlined), 'カフェ・ご飯', Color(0xFFF8BBD9)),
+    (_CategoryIconSet(CupertinoIcons.game_controller, AppIcons.sports_esports_outlined), '趣味・遊び', Color(0xFFE1BEE7)),
+    (_CategoryIconSet(CupertinoIcons.person_2, AppIcons.person_outline), 'お出かけ・同行', Color(0xFFC8E6C9)),
+    (_CategoryIconSet(CupertinoIcons.star, AppIcons.star_border), 'その他', Color(0xFFFFCCBC)),
   ];
 
   @override
@@ -453,7 +453,10 @@ class _CategoryGrid extends StatelessWidget {
         crossAxisSpacing: 10,
         childAspectRatio: 1.7,
         children: List.generate(_categories.length, (index) {
-          final (label, categoryKey, color) = _categories[index];
+          final (iconSet, categoryKey, color) = _categories[index];
+          final icon = Theme.of(context).platform == TargetPlatform.iOS
+              ? iconSet.ios
+              : iconSet.android;
           return InkWell(
             onTap: () {
               context.push('/listings/category?name=$categoryKey');
@@ -466,16 +469,27 @@ class _CategoryGrid extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadii.sm),
               ),
               child: Center(
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 18,
+                      color: AppColors.textPrimary,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      categoryKey,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -484,6 +498,13 @@ class _CategoryGrid extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CategoryIconSet {
+  const _CategoryIconSet(this.ios, this.android);
+
+  final IconData ios;
+  final IconData android;
 }
 
 class _NewListingCard extends StatelessWidget {
