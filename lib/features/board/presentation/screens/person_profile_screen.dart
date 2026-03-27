@@ -2,12 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
 import '../../../../core/ui/app_icons.dart';
-import '../../../chat/presentation/providers/chat_providers.dart';
 
 class PersonProfileScreen extends ConsumerStatefulWidget {
   const PersonProfileScreen({super.key, required this.userId});
@@ -177,7 +176,13 @@ class _PersonProfileScreenState extends ConsumerState<PersonProfileScreen> {
                   child: SizedBox(
                     height: 62,
                     child: ElevatedButton.icon(
-                      onPressed: () => _openRequestChat(context),
+                      onPressed: () => _openContractRequestSheet(
+                        context: context,
+                        sellerDisplayName: displayName,
+                        sellerHourlyRate: hourlyRate,
+                        availability: availability,
+                        location: location,
+                      ),
                       icon: const Icon(AppIcons.calendar_today, color: Colors.white),
                       label: const Text(
                         '予約リクエストへ進む',
@@ -204,7 +209,13 @@ class _PersonProfileScreenState extends ConsumerState<PersonProfileScreen> {
     );
   }
 
-  Future<void> _openRequestChat(BuildContext context) async {
+  Future<void> _openContractRequestSheet({
+    required BuildContext context,
+    required String sellerDisplayName,
+    required int? sellerHourlyRate,
+    required String availability,
+    required String location,
+  }) async {
     final me = FirebaseAuth.instance.currentUser;
     if (me == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -214,22 +225,262 @@ class _PersonProfileScreenState extends ConsumerState<PersonProfileScreen> {
     }
     if (me.uid == widget.userId) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('自分自身にはリクエストできません')),
+        const SnackBar(content: Text('自分自身には依頼できません')),
       );
       return;
     }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+      ),
+      builder: (ctx) => _ProfileContractRequestSheet(
+        sellerId: widget.userId,
+        sellerDisplayName: sellerDisplayName,
+        sellerHourlyRate: sellerHourlyRate,
+        availability: availability,
+        location: location,
+      ),
+    );
+  }
+}
+
+class _ProfileContractRequestSheet extends StatefulWidget {
+  const _ProfileContractRequestSheet({
+    required this.sellerId,
+    required this.sellerDisplayName,
+    required this.sellerHourlyRate,
+    required this.availability,
+    required this.location,
+  });
+
+  final String sellerId;
+  final String sellerDisplayName;
+  final int? sellerHourlyRate;
+  final String availability;
+  final String location;
+
+  @override
+  State<_ProfileContractRequestSheet> createState() =>
+      _ProfileContractRequestSheetState();
+}
+
+class _ProfileContractRequestSheetState
+    extends State<_ProfileContractRequestSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _detailController = TextEditingController();
+  final _messageController = TextEditingController();
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _detailController.dispose();
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  String get _timelineLabel {
+    if (_selectedDate == null || _selectedTime == null) {
+      return '希望日時を選択（任意）';
+    }
+    final dt = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _selectedTime!.hour,
+      _selectedTime!.minute,
+    );
+    return DateFormat('yyyy/MM/dd HH:mm').format(dt);
+  }
+
+  Future<void> _pickDateTime(BuildContext context) async {
+    final now = DateTime.now();
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? now,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 90)),
+    );
+    if (pickedDate == null) return;
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime:
+          _selectedTime ?? TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))),
+    );
+    if (pickedTime == null) return;
+    setState(() {
+      _selectedDate = pickedDate;
+      _selectedTime = pickedTime;
+    });
+  }
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+    final me = FirebaseAuth.instance.currentUser;
+    if (me == null) return;
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _submitting = true);
     try {
-      final chatId = await ref
-          .read(chatRepositoryProvider)
-          .findOrCreateChat(me.uid, widget.userId);
+      final now = Timestamp.now();
+      String? timeline;
+      if (_selectedDate != null && _selectedTime != null) {
+        final dt = DateTime(
+          _selectedDate!.year,
+          _selectedDate!.month,
+          _selectedDate!.day,
+          _selectedTime!.hour,
+          _selectedTime!.minute,
+        );
+        timeline = DateFormat('yyyy/MM/dd HH:mm').format(dt);
+      }
+      final docRef = await FirebaseFirestore.instance.collection('serviceRequests').add({
+        'requestType': 'profileContract',
+        'serviceId': null,
+        'serviceTitle': 'プロフィール契約',
+        'sellerId': widget.sellerId,
+        'sellerName': widget.sellerDisplayName,
+        'buyerId': me.uid,
+        'buyerName': me.displayName ?? me.email ?? '依頼者',
+        'detail': _detailController.text.trim(),
+        'message': _messageController.text.trim().isEmpty
+            ? null
+            : _messageController.text.trim(),
+        'timeline': timeline,
+        'offeredHourlyRate': widget.sellerHourlyRate,
+        'availabilitySnapshot': widget.availability,
+        'locationSnapshot': widget.location,
+        'status': 'requested',
+        'createdAt': now,
+        'updatedAt': now,
+      });
       if (!mounted) return;
-      context.push('/chats/$chatId');
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('契約依頼を送信しました')),
+      );
+      context.push('/seller/requests/${docRef.id}');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('チャットを開始できませんでした: $e')),
+        SnackBar(content: Text('送信に失敗しました: $e')),
       );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.listHorizontal,
+        right: AppSpacing.listHorizontal,
+        top: AppSpacing.md,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
+      ),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Center(
+                child: SizedBox(
+                  width: 40,
+                  child: Divider(thickness: 3, color: Color(0xFFD4D7DE)),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                '${widget.sellerDisplayName}さんに依頼',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                widget.sellerHourlyRate == null
+                    ? '時給: 未設定'
+                    : '時給: ¥${_formatYen(widget.sellerHourlyRate)} / 時間',
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '対応可能: ${widget.availability.isEmpty ? '未設定' : widget.availability}',
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextFormField(
+                controller: _detailController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: '依頼内容',
+                  hintText: 'お願いしたい内容を具体的に入力してください',
+                  alignLabelWithHint: true,
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return '依頼内容を入力してください';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _messageController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'メッセージ（任意）',
+                  hintText: '補足事項があれば入力',
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () => _pickDateTime(context),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(AppIcons.calendar_today,
+                          size: 20, color: AppColors.textSecondary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _timelineLabel,
+                          style: TextStyle(
+                            color: _selectedDate == null
+                                ? AppColors.textSecondary
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _submitting ? null : _submit,
+                  child: Text(_submitting ? '送信中...' : 'この内容で依頼する'),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

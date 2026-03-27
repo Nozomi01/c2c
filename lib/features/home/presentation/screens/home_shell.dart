@@ -24,7 +24,7 @@ class HomeShell extends StatelessWidget {
       resizeToAvoidBottomInset: false,
       body: navigationShell,
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/create'),
+        onPressed: () => context.go('/listings'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
