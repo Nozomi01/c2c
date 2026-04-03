@@ -1,5 +1,4 @@
 import 'package:flutter/gestures.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -220,9 +219,7 @@ class _AuthLandingScreenState extends ConsumerState<_AuthLandingScreen> {
                     children: [
                       _CircleIconButton(
                         color: const Color(0xFFFDC700),
-                        icon: Theme.of(context).platform == TargetPlatform.iOS
-                            ? CupertinoIcons.device_phone_portrait
-                            : AppIcons.phone_iphone,
+                        icon: AppIcons.phone_iphone,
                         onTap: () {
                           _requireTerms(() {
                             context.push('/auth/phone');
@@ -232,9 +229,7 @@ class _AuthLandingScreenState extends ConsumerState<_AuthLandingScreen> {
                       const SizedBox(width: 24),
                       _CircleIconButton(
                         color: const Color(0xFF06C755),
-                        icon: Theme.of(context).platform == TargetPlatform.iOS
-                            ? CupertinoIcons.chat_bubble_fill
-                            : AppIcons.chat_bubble,
+                        icon: AppIcons.chat_bubble,
                         onTap: () {
                           _requireTermsAsync(() async {
                             try {

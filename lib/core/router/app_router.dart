@@ -10,6 +10,7 @@ import '../../features/auth/presentation/screens/otp_verification_screen.dart';
 import '../../features/services/presentation/screens/service_detail_screen.dart';
 import '../../features/services/presentation/screens/service_request_screen.dart';
 import '../../features/board/presentation/screens/people_board_screen.dart';
+import '../../features/board/presentation/screens/text_board_screen.dart';
 import '../../features/board/presentation/screens/person_profile_screen.dart';
 import '../../features/chat/presentation/screens/chat_list_screen.dart';
 import '../../features/chat/presentation/screens/chat_thread_screen.dart';
@@ -29,6 +30,7 @@ import '../../features/profile/presentation/screens/profile_edit_screen.dart';
 import '../../features/profile/presentation/screens/withdraw_screen.dart';
 import '../../features/profile/presentation/screens/identity_verify_screen.dart';
 import '../../features/profile/presentation/screens/stripe_account_screen.dart';
+import '../../features/reservations/presentation/screens/reservations_screen.dart';
 import '../../features/notifications/presentation/screens/notification_list_screen.dart';
 import '../../features/transactions/presentation/screens/transaction_detail_screen.dart';
 import '../../features/transactions/presentation/screens/payment_method_screen.dart';
@@ -109,20 +111,18 @@ final GoRouter _appRouter = GoRouter(
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/listings',
-                name: 'listings',
-                builder: (context, state) => PeopleBoardScreen(
-                  initialQuery: state.uri.queryParameters['q'],
-                ),
+                path: '/reservations',
+                name: 'reservations',
+                builder: (context, state) => const ReservationsScreen(),
               ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
               GoRoute(
-                path: '/listings/category',
-                name: 'categoryListings',
-                builder: (context, state) {
-                  final category =
-                      state.uri.queryParameters['name'] ?? 'カテゴリ';
-                  return PeopleBoardScreen(initialQuery: category);
-                },
+                path: '/board',
+                name: 'board',
+                builder: (context, state) => const TextBoardScreen(),
               ),
             ],
           ),
@@ -150,6 +150,22 @@ final GoRouter _appRouter = GoRouter(
         path: '/create',
         name: 'create',
         redirect: (context, state) => '/listings',
+      ),
+      // People listings (kept as non-tab route)
+      GoRoute(
+        path: '/listings',
+        name: 'listings',
+        builder: (context, state) => PeopleBoardScreen(
+          initialQuery: state.uri.queryParameters['q'],
+        ),
+      ),
+      GoRoute(
+        path: '/listings/category',
+        name: 'categoryListings',
+        builder: (context, state) {
+          final category = state.uri.queryParameters['name'] ?? 'カテゴリ';
+          return PeopleBoardScreen(initialCategory: category);
+        },
       ),
       GoRoute(
         path: '/services/:id',

@@ -1,22 +1,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dropdown_flutter/custom_dropdown.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_theme.dart';
 import '../../../../core/ui/app_icons.dart';
+import '../../../chat/presentation/providers/chat_providers.dart';
 
-class PeopleBoardScreen extends StatefulWidget {
-  const PeopleBoardScreen({super.key, this.initialQuery});
+class PeopleBoardScreen extends ConsumerStatefulWidget {
+  const PeopleBoardScreen({super.key, this.initialQuery, this.initialCategory});
 
   final String? initialQuery;
+  final String? initialCategory;
 
   @override
-  State<PeopleBoardScreen> createState() => _PeopleBoardScreenState();
+  ConsumerState<PeopleBoardScreen> createState() => _PeopleBoardScreenState();
 }
 
-class _PeopleBoardScreenState extends State<PeopleBoardScreen> {
+class _PeopleBoardScreenState extends ConsumerState<PeopleBoardScreen> {
   late final TextEditingController _searchController;
   late String _query;
   _AdvancedSearchFilter _filter = const _AdvancedSearchFilter();
@@ -26,6 +29,10 @@ class _PeopleBoardScreenState extends State<PeopleBoardScreen> {
     super.initState();
     _query = (widget.initialQuery ?? '').trim();
     _searchController = TextEditingController(text: _query);
+    final initialCategory = widget.initialCategory?.trim();
+    if (initialCategory != null && initialCategory.isNotEmpty) {
+      _filter = _AdvancedSearchFilter(category: initialCategory);
+    }
   }
 
   @override
@@ -67,11 +74,9 @@ class _PeopleBoardScreenState extends State<PeopleBoardScreen> {
                             color: Color(0xFFB5B8BF),
                             fontWeight: FontWeight.w600,
                           ),
-                          prefixIcon: Icon(
-                            Theme.of(context).platform == TargetPlatform.iOS
-                                ? CupertinoIcons.search
-                                : AppIcons.search,
-                            color: const Color(0xFFB5B8BF),
+                          prefixIcon: const Icon(
+                            AppIcons.search,
+                            color: Color(0xFFB5B8BF),
                           ),
                           border: InputBorder.none,
                           isDense: true,
@@ -91,7 +96,7 @@ class _PeopleBoardScreenState extends State<PeopleBoardScreen> {
                         clipBehavior: Clip.none,
                         children: [
                           const Center(
-                            child: Icon(CupertinoIcons.slider_horizontal_3, size: 24),
+                            child: Icon(AppIcons.slider_horizontal_3, size: 24),
                           ),
                           if (_filter.hasAnyFilter)
                             const Positioned(
@@ -155,7 +160,7 @@ class _PeopleBoardScreenState extends State<PeopleBoardScreen> {
                       return _BoardCard(
                         data: p,
                         onTap: () => context.push('/people/${p.userId}'),
-                        onMessageTap: () => context.push('/people/${p.userId}'),
+                        onMessageTap: () => _openChatWithUser(p.userId),
                       );
                     },
                   );
@@ -182,6 +187,37 @@ class _PeopleBoardScreenState extends State<PeopleBoardScreen> {
 
     if (result != null) {
       setState(() => _filter = result);
+    }
+  }
+
+  Future<void> _openChatWithUser(String otherUserId) async {
+    final me = FirebaseAuth.instance.currentUser;
+    if (me == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ログインが必要です')),
+      );
+      return;
+    }
+    if (me.uid == otherUserId) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('自分自身にはメッセージできません')),
+      );
+      return;
+    }
+    try {
+      final chatId = await ref.read(chatRepositoryProvider).findOrCreateChat(
+            me.uid,
+            otherUserId,
+          );
+      if (!mounted) return;
+      context.push('/chats/$chatId');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('チャットを開けませんでした: $e')),
+      );
     }
   }
 }
@@ -715,7 +751,7 @@ class _BoardCard extends StatelessWidget {
                   height: 40,
                   child: ElevatedButton.icon(
                     onPressed: onMessageTap,
-                    icon: const Icon(CupertinoIcons.paperplane, size: 16),
+                    icon: const Icon(AppIcons.send, size: 16),
                     label: const Text(
                       'メッセージ',
                       style: TextStyle(fontWeight: FontWeight.w700),

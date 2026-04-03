@@ -20,6 +20,7 @@ class HomeShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+    const size = 24.0;
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: navigationShell,
@@ -30,54 +31,100 @@ class HomeShell extends StatelessWidget {
               activeColor: AppColors.textPrimary,
               inactiveColor: AppColors.textSecondary,
               backgroundColor: Colors.white,
+              iconSize: size,
               items: const [
                 BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.home),
-                  activeIcon: Icon(CupertinoIcons.house_fill),
+                  icon: Icon(AppIcons.navHomeInactive, size: size),
+                  activeIcon: Icon(AppIcons.navHomeActive, size: size),
                   label: 'ホーム',
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.square_list),
-                  activeIcon: Icon(CupertinoIcons.square_list_fill),
+                  icon: Icon(AppIcons.navReservationInactive, size: size),
+                  activeIcon: Icon(AppIcons.navReservationActive, size: size),
+                  label: '予約',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(AppIcons.navBoardInactive, size: size),
+                  activeIcon: Icon(AppIcons.navBoardActive, size: size),
                   label: '掲示板',
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.chat_bubble),
-                  activeIcon: Icon(CupertinoIcons.chat_bubble_fill),
+                  icon: Icon(AppIcons.navMessageInactive, size: size),
+                  activeIcon: Icon(AppIcons.navMessageActive, size: size),
                   label: 'メッセージ',
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(CupertinoIcons.person),
-                  activeIcon: Icon(CupertinoIcons.person_fill),
+                  icon: Icon(AppIcons.navProfileInactive, size: size),
+                  activeIcon: Icon(AppIcons.navProfileActive, size: size),
                   label: 'マイページ',
                 ),
               ],
             )
-          : NavigationBar(
-              selectedIndex: navigationShell.currentIndex,
-              onDestinationSelected: (index) => _onItemTapped(context, index),
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(AppIcons.home_outlined),
-                  selectedIcon: Icon(AppIcons.home),
-                  label: 'ホーム',
-                ),
-                NavigationDestination(
-                  icon: Icon(AppIcons.list_alt_outlined),
-                  selectedIcon: Icon(AppIcons.list_alt),
-                  label: '掲示板',
-                ),
-                NavigationDestination(
-                  icon: Icon(AppIcons.chat_bubble_outline),
-                  selectedIcon: Icon(AppIcons.chat_bubble),
-                  label: 'メッセージ',
-                ),
-                NavigationDestination(
-                  icon: Icon(AppIcons.person_outline),
-                  selectedIcon: Icon(AppIcons.person),
-                  label: 'マイページ',
-                ),
-              ],
+          : NavigationBarTheme(
+              data: NavigationBarThemeData(
+                iconTheme: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return const IconThemeData(
+                      size: size,
+                      color: AppColors.textPrimary,
+                    );
+                  }
+                  return const IconThemeData(
+                    size: size,
+                    color: AppColors.textSecondary,
+                  );
+                }),
+                labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    );
+                  }
+                  return const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  );
+                }),
+              ),
+              child: NavigationBar(
+                selectedIndex: navigationShell.currentIndex,
+                onDestinationSelected: (index) => _onItemTapped(context, index),
+                height: 64,
+                elevation: 0,
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                indicatorColor: AppColors.primarySoft,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(AppIcons.navHomeInactive, size: size),
+                    selectedIcon: Icon(AppIcons.navHomeActive, size: size),
+                    label: 'ホーム',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(AppIcons.navReservationInactive, size: size),
+                    selectedIcon: Icon(AppIcons.navReservationActive, size: size),
+                    label: '予約',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(AppIcons.navBoardInactive, size: size),
+                    selectedIcon: Icon(AppIcons.navBoardActive, size: size),
+                    label: '掲示板',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(AppIcons.navMessageInactive, size: size),
+                    selectedIcon: Icon(AppIcons.navMessageActive, size: size),
+                    label: 'メッセージ',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(AppIcons.navProfileInactive, size: size),
+                    selectedIcon: Icon(AppIcons.navProfileActive, size: size),
+                    label: 'マイページ',
+                  ),
+                ],
+              ),
             ),
     );
   }

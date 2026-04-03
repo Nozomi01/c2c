@@ -1,7 +1,27 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
 
+/// **SF Symbols–style icons** for the whole app: all glyphs use [CupertinoIcons]
+/// (Apple’s SF Symbols–aligned set in Flutter) so iOS and Android share one look.
+///
+/// **Exception:** OAuth / vendor brand marks ([facebook], [facebook_outlined],
+/// [g_mobiledata_rounded], [apple]) use Material [Icons] where Flutter exposes no
+/// matching Cupertino glyph.
 class AppIcons {
+  AppIcons._();
+
+  // --- Bottom navigation (inactive = line, active = filled) ---
+  static const navHomeInactive = CupertinoIcons.house;
+  static const navHomeActive = CupertinoIcons.house_fill;
+  static const navReservationInactive = CupertinoIcons.calendar;
+  static const navReservationActive = CupertinoIcons.calendar_circle_fill;
+  static const navBoardInactive = CupertinoIcons.square_pencil;
+  static const navBoardActive = CupertinoIcons.square_pencil_fill;
+  static const navMessageInactive = CupertinoIcons.chat_bubble;
+  static const navMessageActive = CupertinoIcons.chat_bubble_fill;
+  static const navProfileInactive = CupertinoIcons.person;
+  static const navProfileActive = CupertinoIcons.person_fill;
+
   static const add = CupertinoIcons.add;
   static const home_outlined = CupertinoIcons.home;
   static const home = CupertinoIcons.house_fill;
@@ -70,10 +90,42 @@ class AppIcons {
   static const sports_esports_outlined = CupertinoIcons.game_controller;
 
   static const phone_iphone = CupertinoIcons.device_phone_portrait;
+
+  /// Misc UI (search field, menus)
+  static const slider_horizontal_3 = CupertinoIcons.slider_horizontal_3;
+  static const clear = CupertinoIcons.clear_circled_solid;
+  static const forum = CupertinoIcons.text_bubble;
+  static const error_outline = CupertinoIcons.exclamationmark_triangle;
+  static const place_outlined = CupertinoIcons.location;
+  static const more_horiz = CupertinoIcons.ellipsis;
+
+  /// Home category grid
+  static const category_talk = CupertinoIcons.chat_bubble_2;
+  static const category_advice = CupertinoIcons.lightbulb;
+  static const category_cafe = CupertinoIcons.bag;
+  static const category_game = CupertinoIcons.game_controller;
+  static const category_outing = CupertinoIcons.person_2;
+  static const category_other = CupertinoIcons.star;
+
+  /// Home top page (search row, chips, category header, promos)
+  static const home_category_header = CupertinoIcons.layers_alt_fill;
+  static const home_chip_filter = CupertinoIcons.line_horizontal_3_decrease;
+  static const home_promo_gift = CupertinoIcons.gift_fill;
+  static const home_row_cafe = CupertinoIcons.drop_fill;
+  static const home_row_consult = CupertinoIcons.chat_bubble_2;
+  static const home_row_meal = CupertinoIcons.flame_fill;
+  static const home_row_stroll = CupertinoIcons.map_fill;
+  static const home_row_shop = CupertinoIcons.bag_fill;
+  static const home_row_hobby_entertainment = CupertinoIcons.paintbrush_fill;
+  static const home_row_photo_sns = CupertinoIcons.camera_fill;
+  static const home_row_online = CupertinoIcons.desktopcomputer;
+
+  /// OAuth / brand (Material; no SF equivalent in Flutter)
   static const facebook = Icons.facebook;
   static const facebook_outlined = Icons.facebook_outlined;
   static const apple = Icons.apple;
   static const g_mobiledata_rounded = Icons.g_mobiledata_rounded;
+
   static const alternate_email_outlined = CupertinoIcons.at;
   static const link = CupertinoIcons.link;
 }

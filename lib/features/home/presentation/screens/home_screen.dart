@@ -1,8 +1,5 @@
-import 'dart:async';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,36 +7,90 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/config/app_theme.dart';
 import '../../../../core/ui/app_icons.dart';
 import '../../../notifications/presentation/providers/notification_providers.dart';
-import '../../../services/domain/models/service.dart';
-import '../../../services/presentation/providers/service_list_provider.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final servicesAsync = ref.watch(recommendedServicesProvider);
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
 
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  /// 0 = すべて, 1 = カフェ・お茶, 2 = 悩み相談
+  int _selectedQuickChip = 0;
+
+  void _openListings([String? categoryName]) {
+    if (categoryName == null || categoryName.isEmpty) {
+      context.push('/listings');
+    } else {
+      context.push('/listings/category?name=${Uri.encodeComponent(categoryName)}');
+    }
+  }
+
+  void _openFilter() => _openListings();
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.listHorizontal, AppSpacing.md, AppSpacing.listHorizontal, AppSpacing.sm),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.listHorizontal,
+                  AppSpacing.md,
+                  AppSpacing.listHorizontal,
+                  AppSpacing.sm,
+                ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(child: _SearchBar()),
-                    const SizedBox(width: 8),
-                    _NotificationButton(),
+                    const SizedBox(width: 10),
+                    _BlackFilterButton(onPressed: _openFilter),
                   ],
                 ),
               ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 8)),
-            const SliverToBoxAdapter(child: _PromoBanner()),
+            SliverToBoxAdapter(
+              child: _HomeQuickChips(
+                selectedIndex: _selectedQuickChip,
+                onFilterTap: _openFilter,
+                onSelect: (index) {
+                  setState(() => _selectedQuickChip = index);
+                  switch (index) {
+                    case 0:
+                      _openListings();
+                      break;
+                    case 1:
+                      _openListings('カフェ・お茶');
+                      break;
+                    case 2:
+                      _openListings('悩み相談');
+                      break;
+                  }
+                },
+              ),
+            ),
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            SliverToBoxAdapter(
+              child: _CategorySectionHeader(
+                onTap: () => _openListings(),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 14)),
+            SliverToBoxAdapter(
+              child: _CategoryShortcutRow(
+                onCategoryTap: _openListings,
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            const SliverToBoxAdapter(child: _PromoBannerStrip()),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            const SliverToBoxAdapter(child: _WeeklyPickupCard()),
+            const SliverToBoxAdapter(child: SizedBox(height: 28)),
             SliverToBoxAdapter(
               child: _SectionHeader(
                 title: '新着ユーザーから探す',
@@ -48,50 +99,35 @@ class HomeScreen extends ConsumerWidget {
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
             const SliverToBoxAdapter(child: _NewUsersRow()),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            SliverToBoxAdapter(
-              child: _SectionHeader(title: 'カテゴリから探す', onTap: () {}),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
-            const SliverToBoxAdapter(child: _CategoryGrid()),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            SliverToBoxAdapter(
-              child: _SectionHeader(
-                title: '掲示板から探す',
-                onTap: () => context.go('/listings'),
-              ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 200,
-                child: servicesAsync.when(
-                  data: (services) => ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal),
-                    itemCount: services.length,
-                    itemBuilder: (context, index) {
-                      return RepaintBoundary(
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: _NewListingCard(service: services[index]),
-                        ),
-                      );
-                    },
-                  ),
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(
-                    child: Text(
-                      '読み込みに失敗しました',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BlackFilterButton extends StatelessWidget {
+  const _BlackFilterButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.textPrimary,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onPressed,
+        child: const SizedBox(
+          width: 48,
+          height: 48,
+          child: Icon(
+            AppIcons.slider_horizontal_3,
+            color: Colors.white,
+            size: 22,
+          ),
         ),
       ),
     );
@@ -122,231 +158,126 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadii.sm),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.border.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(AppRadii.sm),
-        ),
-        child: TextField(
-          controller: _controller,
-          onSubmitted: (_) => _goToSearch(),
-          decoration: InputDecoration(
-            hintText: 'ユーザーを検索',
-            hintStyle: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-            prefixIcon: Icon(
-              Theme.of(context).platform == TargetPlatform.iOS
-                  ? CupertinoIcons.search
-                  : AppIcons.search,
-              size: 22,
-              color: AppColors.textSecondary,
-            ),
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
-            isDense: true,
+    final unreadCount = ref.watch(unreadNotificationCountProvider);
+    final showBadge = unreadCount > 0;
+
+    return Material(
+      color: const Color(0xFFEBEDF0),
+      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.antiAlias,
+      child: TextField(
+        controller: _controller,
+        onSubmitted: (_) => _goToSearch(),
+        decoration: InputDecoration(
+          hintText: 'キーワードやエリアで検索',
+          hintStyle: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary.withValues(alpha: 0.85),
           ),
-          style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
-          textInputAction: TextInputAction.search,
+          prefixIcon: Icon(
+            AppIcons.search,
+            size: 20,
+            color: AppColors.textSecondary.withValues(alpha: 0.75),
+          ),
+          suffixIcon: Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                IconButton(
+                  onPressed: () => context.push('/notifications'),
+                  icon: Icon(
+                    AppIcons.notifications_outlined,
+                    size: 22,
+                    color: AppColors.textSecondary.withValues(alpha: 0.85),
+                  ),
+                ),
+                if (showBadge)
+                  Positioned(
+                    right: 6,
+                    top: 6,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: unreadCount > 99 ? 4 : (unreadCount > 9 ? 4 : 5),
+                        vertical: 2,
+                      ),
+                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.rectangle,
+                        borderRadius: BorderRadius.all(Radius.circular(AppRadii.xs)),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        unreadCount > 99 ? '99+' : '$unreadCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
+          isDense: true,
         ),
+        style: const TextStyle(fontSize: 15, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+        textInputAction: TextInputAction.search,
       ),
     );
   }
 }
 
-class _NotificationButton extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final unreadCount = ref.watch(unreadNotificationCountProvider);
-    final showBadge = unreadCount > 0;
+class _HomeQuickChips extends StatelessWidget {
+  const _HomeQuickChips({
+    required this.selectedIndex,
+    required this.onFilterTap,
+    required this.onSelect,
+  });
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        IconButton(
-          onPressed: () => context.push('/notifications'),
-          icon: Icon(
-            Theme.of(context).platform == TargetPlatform.iOS
-                ? CupertinoIcons.bell
-                : AppIcons.notifications_outlined,
-            size: 26,
-          ),
-        ),
-        if (showBadge)
-          Positioned(
-            right: 6,
-            top: 6,
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: unreadCount > 99 ? 4 : (unreadCount > 9 ? 4 : 5),
-                vertical: 2,
-              ),
-              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-              decoration: const BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.rectangle,
-                borderRadius: BorderRadius.all(Radius.circular(AppRadii.xs)),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                unreadCount > 99 ? '99+' : '$unreadCount',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _PromoBanner extends StatefulWidget {
-  const _PromoBanner();
-
-  @override
-  State<_PromoBanner> createState() => _PromoBannerState();
-}
-
-class _PromoBannerState extends State<_PromoBanner> {
-  static const _banners = [
-    _BannerItem(
-      imagePath: 'assets/images/logo_text.png',
-      title: 'まずは気軽に話してみよう',
-      subtitle: '今すぐ相談できる相手を見つける',
-    ),
-    _BannerItem(
-      imagePath: 'assets/images/logo.png',
-      title: 'あなたの得意を出品しよう',
-      subtitle: '時給を設定して掲示板で募集',
-    ),
-    _BannerItem(
-      imagePath: 'assets/images/phone.png',
-      title: 'スマホだけでかんたんスタート',
-      subtitle: 'プロフィールを作ってすぐ始める',
-    ),
-  ];
-
-  late final PageController _pageController;
-  Timer? _timer;
-  int _current = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(viewportFraction: 1);
-    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted || !_pageController.hasClients) return;
-      final next = (_current + 1) % _banners.length;
-      _pageController.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeOut,
-      );
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _pageController.dispose();
-    super.dispose();
-  }
+  final int selectedIndex;
+  final VoidCallback onFilterTap;
+  final void Function(int index) onSelect;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 150,
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal),
-      child: Column(
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(AppSpacing.listHorizontal, 0, AppSpacing.listHorizontal, 0),
         children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadii.md),
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: _banners.length,
-                onPageChanged: (index) {
-                  if (_current != index) {
-                    setState(() => _current = index);
-                  }
-                },
-                itemBuilder: (context, index) {
-                  final banner = _banners[index];
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.asset(
-                        banner.imagePath,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: const Color(0xFFE9ECF2),
-                        ),
-                      ),
-                      Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [Color(0xAA000000), Color(0x22000000)],
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 12,
-                        right: 12,
-                        bottom: 12,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              banner.title,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              banner.subtitle,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _FilterIconChip(onTap: onFilterTap),
           ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(_banners.length, (index) {
-              final selected = index == _current;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: selected ? 14 : 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: selected ? AppColors.textPrimary : const Color(0xFFD5D9E1),
-                  borderRadius: BorderRadius.circular(AppRadii.pill),
-                ),
-              );
-            }),
+          _TextChip(
+            label: 'すべて',
+            selected: selectedIndex == 0,
+            icon: null,
+            onTap: () => onSelect(0),
+          ),
+          const SizedBox(width: 8),
+          _TextChip(
+            label: '☕️ カフェ・お茶',
+            selected: selectedIndex == 1,
+            icon: AppIcons.home_row_cafe,
+            onTap: () => onSelect(1),
+          ),
+          const SizedBox(width: 8),
+          _TextChip(
+            label: '💬 悩み相談',
+            selected: selectedIndex == 2,
+            icon: AppIcons.home_row_consult,
+            onTap: () => onSelect(2),
           ),
         ],
       ),
@@ -354,16 +285,529 @@ class _PromoBannerState extends State<_PromoBanner> {
   }
 }
 
-class _BannerItem {
-  const _BannerItem({
-    required this.imagePath,
-    required this.title,
-    required this.subtitle,
+class _FilterIconChip extends StatelessWidget {
+  const _FilterIconChip({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFE2E5EB)),
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            AppIcons.home_chip_filter,
+            size: 18,
+            color: AppColors.textSecondary.withValues(alpha: 0.9),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TextChip extends StatelessWidget {
+  const _TextChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.icon,
   });
 
-  final String imagePath;
+  final String label;
+  final bool selected;
+  final IconData? icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = selected ? AppColors.textPrimary : Colors.white;
+    final fg = selected ? Colors.white : AppColors.textPrimary;
+    final border = selected ? AppColors.textPrimary : const Color(0xFFE2E5EB);
+
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+          height: 40,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: border, width: selected ? 0 : 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 16, color: fg),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: fg,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategorySectionHeader extends StatelessWidget {
+  const _CategorySectionHeader({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.xs),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Icon(
+                AppIcons.home_category_header,
+                size: 22,
+                color: const Color(0xFF1976D2),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'カテゴリから探す',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                AppIcons.chevron_right,
+                size: 16,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryShortcutRow extends StatelessWidget {
+  const _CategoryShortcutRow({required this.onCategoryTap});
+
+  final void Function(String categoryName) onCategoryTap;
+
+  static const _items = <_CategoryShortcut>[
+    _CategoryShortcut(
+      label: 'カフェ',
+      icon: AppIcons.home_row_cafe,
+      categoryName: 'カフェ・お茶',
+      iconColor: Color(0xFFE65100),
+      bg: Color(0xFFFFF3E0),
+    ),
+    _CategoryShortcut(
+      label: '悩み相談',
+      icon: AppIcons.home_row_consult,
+      categoryName: '悩み相談',
+      iconColor: Color(0xFF1565C0),
+      bg: Color(0xFFE3F2FD),
+    ),
+    _CategoryShortcut(
+      label: '食事',
+      icon: AppIcons.home_row_meal,
+      categoryName: 'ランチ・食事',
+      iconColor: Color(0xFFC62828),
+      bg: Color(0xFFFFEBEE),
+    ),
+    _CategoryShortcut(
+      label: 'お散歩',
+      icon: AppIcons.home_row_stroll,
+      categoryName: 'お散歩・街歩き',
+      iconColor: Color(0xFF2E7D32),
+      bg: Color(0xFFE8F5E9),
+    ),
+    _CategoryShortcut(
+      label: 'お買い物',
+      icon: AppIcons.home_row_shop,
+      categoryName: 'お買い物',
+      iconColor: Color(0xFF6A1B9A),
+      bg: Color(0xFFF3E5F5),
+    ),
+    _CategoryShortcut(
+      label: '趣味',
+      icon: AppIcons.home_row_hobby_entertainment,
+      categoryName: '趣味・エンタメ',
+      iconColor: Color(0xFFC2185B),
+      bg: Color(0xFFFCE4EC),
+    ),
+    _CategoryShortcut(
+      label: '写真',
+      icon: AppIcons.home_row_photo_sns,
+      categoryName: '写真・SNS',
+      iconColor: Color(0xFF00695C),
+      bg: Color(0xFFE0F2F1),
+    ),
+    _CategoryShortcut(
+      label: 'オンライン',
+      icon: AppIcons.home_row_online,
+      categoryName: 'オンライン',
+      iconColor: Color(0xFF283593),
+      bg: Color(0xFFE8EAF6),
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 118,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal),
+        itemCount: _items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        itemBuilder: (context, index) {
+          final item = _items[index];
+          return InkWell(
+            onTap: () => onCategoryTap(item.categoryName),
+            borderRadius: BorderRadius.circular(40),
+            child: SizedBox(
+              width: 80,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: item.bg,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      item.icon,
+                      size: 28,
+                      color: item.iconColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    item.label,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CategoryShortcut {
+  const _CategoryShortcut({
+    required this.label,
+    required this.icon,
+    required this.categoryName,
+    required this.iconColor,
+    required this.bg,
+  });
+
+  final String label;
+  final IconData icon;
+  final String categoryName;
+  final Color iconColor;
+  final Color bg;
+}
+
+class _PromoBannerStrip extends StatelessWidget {
+  const _PromoBannerStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 158,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal),
+        children: [
+          _GradientPromoCard(
+            badge: '期間限定',
+            title: '初回利用 1,000円OFF!',
+            subtitle: '今すぐチェック',
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF8E7CC3), Color(0xFF6B5B95)],
+            ),
+            accent: Color(0xFFB39DDB),
+          ),
+          SizedBox(width: 12),
+          _GradientPromoCard(
+            badge: 'おすすめ',
+            title: '気になる相手を見つけよう',
+            subtitle: 'プロフィールをのぞいてみる',
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFE57373), Color(0xFFC62828)],
+            ),
+            accent: Color(0xFFFFCDD2),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GradientPromoCard extends StatelessWidget {
+  const _GradientPromoCard({
+    required this.badge,
+    required this.title,
+    required this.subtitle,
+    required this.gradient,
+    required this.accent,
+  });
+
+  final String badge;
   final String title;
   final String subtitle;
+  final Gradient gradient;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width - AppSpacing.listHorizontal * 2 - 48;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        width: width.clamp(280.0, 400.0),
+        decoration: BoxDecoration(gradient: gradient),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              right: -8,
+              bottom: -12,
+              child: Icon(
+                AppIcons.home_promo_gift,
+                size: 120,
+                color: accent.withValues(alpha: 0.35),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      badge,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WeeklyPickupCard extends StatelessWidget {
+  const _WeeklyPickupCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('users').limit(40).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final users = snapshot.data!.docs
+            .map(_NewUserItem.fromDoc)
+            .where((u) => u.displayName.isNotEmpty)
+            .toList();
+        users.sort((a, b) => b.sortDate.compareTo(a.sortDate));
+        if (users.isEmpty) return const SizedBox.shrink();
+        final user = users.first;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadii.xl),
+            child: Material(
+              color: const Color(0xFFE0E0E0),
+              child: InkWell(
+                onTap: () => context.push('/people/${user.userId}'),
+                child: SizedBox(
+                  height: 220,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (user.photoUrl.isNotEmpty)
+                        CachedNetworkImage(
+                          imageUrl: user.photoUrl,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => Container(color: const Color(0xFFBDBDBD)),
+                        )
+                      else
+                        Container(color: const Color(0xFFBDBDBD)),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.4),
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.55),
+                            ],
+                            stops: const [0, 0.42, 1],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 12,
+                        top: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(AppIcons.star, size: 15, color: AppColors.primary),
+                              const SizedBox(width: 6),
+                              const Text(
+                                '今週のピックアップ',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Material(
+                          color: const Color(0xFF2196F3),
+                          shape: const CircleBorder(),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () {},
+                            customBorder: const CircleBorder(),
+                            child: const SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: Icon(
+                                AppIcons.favorite_border,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 16,
+                        right: 16,
+                        bottom: 18,
+                        child: Text(
+                          user.displayName,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            shadows: [
+                              Shadow(blurRadius: 10, color: Colors.black54),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -393,9 +837,7 @@ class _SectionHeader extends StatelessWidget {
               ),
               const Spacer(),
               Icon(
-                Theme.of(context).platform == TargetPlatform.iOS
-                    ? CupertinoIcons.chevron_right
-                    : AppIcons.chevron_right,
+                AppIcons.chevron_right,
                 size: 14,
                 color: AppColors.textSecondary,
               ),
@@ -483,9 +925,7 @@ class _NewUsersRow extends StatelessWidget {
                         child: ClipOval(
                           child: user.photoUrl.isEmpty
                               ? Icon(
-                                  Theme.of(context).platform == TargetPlatform.iOS
-                                      ? CupertinoIcons.person_fill
-                                      : AppIcons.person,
+                                  AppIcons.person,
                                   size: 28,
                                   color: const Color(0xFF64B5F6),
                                 )
@@ -493,9 +933,7 @@ class _NewUsersRow extends StatelessWidget {
                                   imageUrl: user.photoUrl,
                                   fit: BoxFit.cover,
                                   errorWidget: (_, __, ___) => Icon(
-                                    Theme.of(context).platform == TargetPlatform.iOS
-                                        ? CupertinoIcons.person_fill
-                                        : AppIcons.person,
+                                    AppIcons.person,
                                     size: 28,
                                     color: const Color(0xFF64B5F6),
                                   ),
@@ -557,155 +995,5 @@ class _NewUserItem {
     if (raw is Timestamp) return raw.toDate();
     if (raw is DateTime) return raw;
     return null;
-  }
-}
-
-class _CategoryGrid extends StatelessWidget {
-  const _CategoryGrid();
-
-  static const _categories = [
-    (_CategoryIconSet(CupertinoIcons.chat_bubble_2, AppIcons.chat_bubble_outline), 'トーク・雑談', Color(0xFFFFF9C4)),
-    (_CategoryIconSet(CupertinoIcons.lightbulb, AppIcons.lightbulb_outline), '相談・アドバイス', Color(0xFFB3E5FC)),
-    (_CategoryIconSet(CupertinoIcons.bag, AppIcons.restaurant_outlined), 'カフェ・ご飯', Color(0xFFF8BBD9)),
-    (_CategoryIconSet(CupertinoIcons.game_controller, AppIcons.sports_esports_outlined), '趣味・遊び', Color(0xFFE1BEE7)),
-    (_CategoryIconSet(CupertinoIcons.person_2, AppIcons.person_outline), 'お出かけ・同行', Color(0xFFC8E6C9)),
-    (_CategoryIconSet(CupertinoIcons.star, AppIcons.star_border), 'その他', Color(0xFFFFCCBC)),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal),
-      child: GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 1.7,
-        children: List.generate(_categories.length, (index) {
-          final (iconSet, categoryKey, color) = _categories[index];
-          final icon = Theme.of(context).platform == TargetPlatform.iOS
-              ? iconSet.ios
-              : iconSet.android;
-          return InkWell(
-            onTap: () {
-              context.push('/listings/category?name=$categoryKey');
-            },
-            borderRadius: BorderRadius.circular(AppRadii.sm),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(AppRadii.sm),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      icon,
-                      size: 18,
-                      color: AppColors.textPrimary,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      categoryKey,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-class _CategoryIconSet {
-  const _CategoryIconSet(this.ios, this.android);
-
-  final IconData ios;
-  final IconData android;
-}
-
-class _NewListingCard extends StatelessWidget {
-  const _NewListingCard({required this.service});
-
-  final Service service;
-
-  @override
-  Widget build(BuildContext context) {
-    final imageUrl = service.images.isNotEmpty ? service.images.first : null;
-    return InkWell(
-      onTap: () => context.push('/services/${service.id}'),
-      borderRadius: BorderRadius.circular(AppRadii.sm),
-      child: SizedBox(
-        width: 140,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadii.sm),
-              child: SizedBox(
-                width: 140,
-                height: 120,
-                child: imageUrl == null
-                    ? Container(
-                        color: AppColors.primarySoft,
-                        child: Icon(
-                          Theme.of(context).platform == TargetPlatform.iOS
-                              ? CupertinoIcons.photo
-                              : AppIcons.image,
-                          color: AppColors.primary,
-                          size: 40,
-                        ),
-                      )
-                    : CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Container(
-                          color: AppColors.primarySoft,
-                          child: Icon(
-                            Theme.of(context).platform == TargetPlatform.iOS
-                                ? CupertinoIcons.photo_fill_on_rectangle_fill
-                                : AppIcons.broken_image_outlined,
-                            color: AppColors.primary,
-                            size: 40,
-                          ),
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              service.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '¥${service.price} / 時間',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
