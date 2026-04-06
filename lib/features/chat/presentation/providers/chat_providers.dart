@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/chat_repository.dart';
@@ -23,6 +24,17 @@ final userChatsWithUnreadProvider =
     StreamProvider.family<List<ChatWithUnread>, String>((ref, userId) {
   final repo = ref.watch(chatRepositoryProvider);
   return repo.watchUserChatsWithUnread(userId);
+});
+
+/// Any chat with unread messages — drives the messages tab red dot on the main shell.
+final hasAnyChatUnreadProvider = Provider<bool>((ref) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return false;
+  final chats = ref.watch(userChatsWithUnreadProvider(uid));
+  return chats.maybeWhen(
+    data: (list) => list.any((c) => c.unreadCount > 0),
+    orElse: () => false,
+  );
 });
 
 final chatDetailProvider =

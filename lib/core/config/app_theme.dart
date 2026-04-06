@@ -37,6 +37,11 @@ class AppSpacing {
   static const double md = 12;
   static const double lg = 16;
   static const double xl = 24;
+
+  /// Scroll/list bottom inset: system safe area + [HomeShell] floating pill (~58) + margins.
+  static double bottomForFloatingShell(BuildContext context) {
+    return MediaQuery.paddingOf(context).bottom + 80;
+  }
 }
 
 class AppTheme {

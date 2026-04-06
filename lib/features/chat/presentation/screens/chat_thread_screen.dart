@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -17,6 +18,18 @@ import '../../../../core/ui/app_icons.dart';
 import '../../data/chat_repository.dart';
 import '../../domain/models/message.dart';
 import '../providers/chat_providers.dart';
+
+/// Chat thread canvas (reference: light grey, not app default grey).
+const Color _kChatThreadBg = Color(0xFFF7F7F7);
+const double _kBubbleRadius = 18;
+const Color _kBubbleMetaGrey = Color(0xFF9CA3AF);
+const Color _kIncomingBubbleBorder = Color(0xFFE5E7EB);
+
+/// Composer bar (reference: white strip, hairline top, pill field, + / send).
+const Color _kComposerTopBorder = Color(0xFFE5E7EB);
+const Color _kComposerInputFill = Color(0xFFF0F0F0);
+const Color _kComposerPlusCircle = Color(0xFFBDBDBD);
+const Color _kDatePillBg = Color(0xFF9E9E9E);
 
 class ChatThreadScreen extends ConsumerStatefulWidget {
   const ChatThreadScreen({super.key, required this.chatId});
@@ -269,6 +282,143 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     });
   }
 
+  Widget _buildMessageStack(
+    BuildContext context,
+    String currentUserId, {
+    required String? peerPhotoUrl,
+  }) {
+    final chatItems = _chatItemsWithDayDividers(_messages);
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        ListView.builder(
+          controller: _scrollController,
+          reverse: true,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.listHorizontal,
+            vertical: 12,
+          ),
+          itemCount: chatItems.length,
+          itemBuilder: (context, index) {
+            final item = chatItems[chatItems.length - 1 - index];
+            if (item is DateTime) {
+              return _DayDivider(date: item);
+            }
+            final msg = item as Message;
+            final isMine = msg.senderId == currentUserId;
+            return _MessageBubble(
+              message: msg,
+              isMine: isMine,
+              peerPhotoUrl: peerPhotoUrl,
+            );
+          },
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            child: AnimatedOpacity(
+              opacity: _loadingMore ? 1 : 0,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              child: AnimatedSlide(
+                offset: _loadingMore ? Offset.zero : const Offset(0, -0.12),
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.only(
+                    top: 8,
+                    bottom: 20,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        _kChatThreadBg.withValues(alpha: 0.98),
+                        _kChatThreadBg.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 26,
+                        height: 26,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '読み込み中…',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 8,
+          bottom: 8,
+          child: AnimatedOpacity(
+            opacity: _showJumpToLatest ? 1 : 0,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            child: IgnorePointer(
+              ignoring: !_showJumpToLatest,
+              child: Material(
+                elevation: 0,
+                borderRadius: BorderRadius.circular(AppRadii.xxl),
+                color: Colors.white,
+                child: InkWell(
+                  onTap: () => _scrollToBottom(),
+                  borderRadius: BorderRadius.circular(AppRadii.xxl),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          AppIcons.keyboard_arrow_down_rounded,
+                          size: 22,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '最新へ',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   /// Each calendar day (local) gets a [DateTime] marker, then [Message]s for that day.
   List<Object> _chatItemsWithDayDividers(List<Message> messages) {
     if (messages.isEmpty) return [];
@@ -304,8 +454,13 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
 
     final repo = ref.watch(chatRepositoryProvider);
 
+    final chat = ref.watch(chatDetailProvider(widget.chatId)).valueOrNull;
+    final peerId = chat != null
+        ? chat.users.firstWhere((id) => id != user.uid, orElse: () => '')
+        : '';
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: _kChatThreadBg,
       appBar: _buildAppBar(context, user.uid),
       body: Column(
         children: [
@@ -322,209 +477,158 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                           ),
                         ),
                       )
-                    : Builder(
-                        builder: (context) {
-                          final chatItems = _chatItemsWithDayDividers(_messages);
-                          return Stack(
-                            clipBehavior: Clip.none,
-                            alignment: Alignment.topCenter,
-                            children: [
-                              ListView.builder(
-                                controller: _scrollController,
-                                reverse: true,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.listHorizontal,
-                                  vertical: 12,
-                                ),
-                                itemCount: chatItems.length,
-                                itemBuilder: (context, index) {
-                                  // Chronological [chatItems] (oldest→newest); index 0 in builder = newest at bottom.
-                                  final item =
-                                      chatItems[chatItems.length - 1 - index];
-                                  if (item is DateTime) {
-                                    return _DayDivider(date: item);
-                                  }
-                                  final msg = item as Message;
-                                  final isMine = msg.senderId == user.uid;
-                                  return _MessageBubble(
-                                    message: msg,
-                                    isMine: isMine,
-                                  );
-                                },
-                              ),
-                              // Load-more feedback (does not affect scroll extent).
-                              Positioned(
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                child: IgnorePointer(
-                                  child: AnimatedOpacity(
-                                    opacity: _loadingMore ? 1 : 0,
-                                    duration: const Duration(milliseconds: 220),
-                                    curve: Curves.easeOut,
-                                    child: AnimatedSlide(
-                                      offset: _loadingMore
-                                          ? Offset.zero
-                                          : const Offset(0, -0.12),
-                                      duration: const Duration(milliseconds: 280),
-                                      curve: Curves.easeOutCubic,
-                                      child: Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.only(
-                                          top: 8,
-                                          bottom: 20,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topCenter,
-                                            end: Alignment.bottomCenter,
-                                            colors: [
-                                              AppColors.background
-                                                  .withValues(alpha: 0.98),
-                                              AppColors.background
-                                                  .withValues(alpha: 0),
-                                            ],
-                                          ),
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            SizedBox(
-                                              width: 26,
-                                              height: 26,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.5,
-                                                color: AppColors.primary,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              '読み込み中…',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: AppColors.textSecondary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Jump to newest messages (when scrolled up in history).
-                              Positioned(
-                                right: 8,
-                                bottom: 8,
-                                child: AnimatedOpacity(
-                                  opacity: _showJumpToLatest ? 1 : 0,
-                                  duration: const Duration(milliseconds: 200),
-                                  curve: Curves.easeOut,
-                                  child: IgnorePointer(
-                                    ignoring: !_showJumpToLatest,
-                                    child: Material(
-                                      elevation: 0,
-                                      borderRadius: BorderRadius.circular(AppRadii.xxl),
-                                      color: Colors.white,
-                                      child: InkWell(
-                                        onTap: () => _scrollToBottom(),
-                                        borderRadius: BorderRadius.circular(AppRadii.xxl),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 14,
-                                            vertical: 10,
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                AppIcons.keyboard_arrow_down_rounded,
-                                                size: 22,
-                                                color: AppColors.primary,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                '最新へ',
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: AppColors.primary,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
+                    : peerId.isEmpty
+                        ? _buildMessageStack(context, user.uid, peerPhotoUrl: null)
+                        : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                            stream: FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(peerId)
+                                .snapshots(),
+                            builder: (context, peerSnap) {
+                              final raw =
+                                  (peerSnap.data?.data()?['photoURL'] as String?)
+                                      ?.trim();
+                              final url = (raw != null && raw.isNotEmpty)
+                                  ? raw
+                                  : null;
+                              return _buildMessageStack(
+                                context,
+                                user.uid,
+                                peerPhotoUrl: url,
+                              );
+                            },
+                          ),
           ),
           Container(
             padding: EdgeInsets.only(
-              left: 16,
-              right: 8,
-              top: 8,
-              bottom: 8 + MediaQuery.of(context).padding.bottom,
+              left: 12,
+              right: 12,
+              top: 10,
+              bottom: 10 + MediaQuery.of(context).padding.bottom,
             ),
             decoration: const BoxDecoration(
               color: Colors.white,
+              border: Border(
+                top: BorderSide(color: _kComposerTopBorder, width: 1),
+              ),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                IconButton(
-                  onPressed: _sendingAttachment
-                      ? null
-                      : () => _pickAndSendImage(repo, user.uid),
-                  icon: const Icon(AppIcons.photo_outlined),
-                  color: AppColors.textSecondary,
+                Opacity(
+                  opacity: _sendingAttachment ? 0.45 : 1,
+                  child: Material(
+                    color: _kComposerPlusCircle,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: _sendingAttachment
+                          ? null
+                          : () => _showComposerAttachmentSheet(
+                                context,
+                                repo,
+                                user.uid,
+                              ),
+                      child: const SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Icon(
+                          Icons.add,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                IconButton(
-                  onPressed: _sendingAttachment
-                      ? null
-                      : () => _pickAndSendFile(repo, user.uid),
-                  icon: const Icon(AppIcons.attach_file),
-                  color: AppColors.textSecondary,
-                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: TextField(
                     controller: _controller,
                     minLines: 1,
                     maxLines: 4,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: AppColors.textPrimary,
+                    ),
                     decoration: InputDecoration(
-                      hintText: 'メッセージを入力',
+                      hintText: 'メッセージを入力...',
+                      hintStyle: TextStyle(
+                        color: AppColors.textSecondary.withValues(alpha: 0.85),
+                      ),
                       filled: true,
-                      fillColor: AppColors.background,
+                      fillColor: _kComposerInputFill,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadii.xxl),
+                        borderRadius: BorderRadius.circular(999),
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.listHorizontal,
+                        horizontal: 16,
                         vertical: 12,
                       ),
                     ),
                     onSubmitted: (_) => _send(repo, user.uid),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  onPressed: () => _send(repo, user.uid),
-                  icon: const Icon(AppIcons.send),
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Material(
+                    color: AppColors.primary,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => _send(repo, user.uid),
+                      child: const Icon(
+                        AppIcons.send,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showComposerAttachmentSheet(
+    BuildContext context,
+    ChatRepository repo,
+    String uid,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(AppIcons.photo_outlined),
+              title: const Text('写真を送信'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _pickAndSendImage(repo, uid);
+              },
+            ),
+            ListTile(
+              leading: const Icon(AppIcons.attach_file),
+              title: const Text('ファイルを送信'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _pickAndSendFile(repo, uid);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -782,7 +886,46 @@ class _ChatHistoryLoadingPlaceholder extends StatelessWidget {
   }
 }
 
-/// Horizontal rule with centered date (local calendar day).
+class _PeerAvatar extends StatelessWidget {
+  const _PeerAvatar({required this.photoUrl, required this.size});
+
+  final String? photoUrl;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = photoUrl?.trim();
+    final hasUrl = url != null && url.isNotEmpty;
+
+    return ClipOval(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: hasUrl
+            ? CachedNetworkImage(
+                imageUrl: url,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => _placeholder(context),
+                errorWidget: (_, __, ___) => _placeholder(context),
+              )
+            : _placeholder(context),
+      ),
+    );
+  }
+
+  Widget _placeholder(BuildContext context) {
+    return ColoredBox(
+      color: const Color(0xFFE5E7EB),
+      child: Icon(
+        Icons.person_rounded,
+        size: size * 0.55,
+        color: const Color(0xFF9CA3AF),
+      ),
+    );
+  }
+}
+
+/// Centered pill label for the local calendar day (no side rules).
 class _DayDivider extends StatelessWidget {
   const _DayDivider({required this.date});
 
@@ -801,137 +944,213 @@ class _DayDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Divider(
-              height: 1,
-              thickness: 1,
-              color: Colors.grey.shade300,
+      padding: const EdgeInsets.only(top: 12, bottom: 16),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: _kDatePillBg,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            _label(date),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(
-              _label(date),
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Divider(
-              height: 1,
-              thickness: 1,
-              color: Colors.grey.shade300,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message, required this.isMine});
+  const _MessageBubble({
+    required this.message,
+    required this.isMine,
+    this.peerPhotoUrl,
+  });
 
   final Message message;
   final bool isMine;
+  final String? peerPhotoUrl;
+
+  static const double _avatarSize = 40;
 
   @override
   Widget build(BuildContext context) {
     final timeStr = DateFormat('HH:mm').format(message.createdAt);
+    final maxBubbleW = MediaQuery.of(context).size.width * 0.72;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Align(
-        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-        child: Column(
-          crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isMine ? AppColors.primary : Colors.grey.shade200,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(AppRadii.xlSoft),
-                  topRight: const Radius.circular(AppRadii.xlSoft),
-                  bottomLeft: Radius.circular(
-                    isMine ? AppRadii.xlSoft : AppRadii.xxs * 2,
-                  ),
-                  bottomRight: Radius.circular(
-                    isMine ? AppRadii.xxs * 2 : AppRadii.xlSoft,
-                  ),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment:
-                          isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (message.image != null) ...[
-                          GestureDetector(
-                            onTap: () {
-                              _showFullScreenImage(context, message.image!);
-                            },
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(AppRadii.md),
-                              child: AspectRatio(
-                                aspectRatio: 4 / 3,
-                                child: Image.network(
-                                  message.image!,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                          ),
-                          if ((message.text ?? '').isNotEmpty)
-                            const SizedBox(height: 8),
-                        ],
-                        if ((message.text ?? '').isNotEmpty)
-                          Text(
-                            message.text ?? '',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: isMine ? Colors.white : AppColors.textPrimary,
-                            ),
-                          ),
+    if (isMine) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: IntrinsicWidth(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxBubbleW),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(_kBubbleRadius),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
                       ],
                     ),
-                  ),
-                  if (isMine) ...[
-                    const SizedBox(width: 6),
-                    Icon(
-                      message.isRead ? AppIcons.done_all : AppIcons.done,
-                      size: 14,
-                      color: message.isRead ? Colors.white70 : Colors.white,
+                    child: _bubbleContent(
+                      context,
+                      textColor: Colors.white,
+                      imageRadius: _kBubbleRadius - 4,
                     ),
-                  ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (message.isRead)
+                        const Text(
+                          '既読',
+                          style: TextStyle(
+                            fontSize: 10,
+                            height: 1.1,
+                            color: _kBubbleMetaGrey,
+                          ),
+                        ),
+                      Text(
+                        timeStr,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          height: 1.2,
+                          color: _kBubbleMetaGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _PeerAvatar(photoUrl: peerPhotoUrl, size: _avatarSize),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: maxBubbleW),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(_kBubbleRadius),
+                          border: Border.all(
+                            color: _kIncomingBubbleBorder,
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: _bubbleContent(
+                          context,
+                          textColor: AppColors.textPrimary,
+                          imageRadius: _kBubbleRadius - 4,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      timeStr,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: _kBubbleMetaGrey,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              timeStr,
-              style: TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bubbleContent(
+    BuildContext context, {
+    required Color textColor,
+    required double imageRadius,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (message.image != null) ...[
+          GestureDetector(
+            onTap: () => _showFullScreenImage(context, message.image!),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(imageRadius),
+              child: AspectRatio(
+                aspectRatio: 4 / 3,
+                child: Image.network(
+                  message.image!,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+          if ((message.text ?? '').isNotEmpty) const SizedBox(height: 8),
+        ],
+        if ((message.text ?? '').isNotEmpty)
+          Text(
+            message.text ?? '',
+            style: TextStyle(
+              fontSize: 15,
+              height: 1.35,
+              color: textColor,
+            ),
+          ),
+      ],
     );
   }
 

@@ -33,9 +33,11 @@ class ReservationsScreen extends ConsumerWidget {
         surfaceTintColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.listHorizontal,
-          vertical: AppSpacing.md,
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.listHorizontal,
+          AppSpacing.md,
+          AppSpacing.listHorizontal,
+          AppSpacing.md + AppSpacing.bottomForFloatingShell(context),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

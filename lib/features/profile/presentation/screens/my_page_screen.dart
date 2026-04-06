@@ -10,19 +10,27 @@ import '../../../../core/config/app_theme.dart';
 import '../../../../core/ui/app_icons.dart';
 import '../providers/profile_mode_provider.dart';
 
-Widget _avatarPlaceholder(String displayName, double size) {
+// --- Design tokens (profile reference) ---
+const Color _kPageBg = Color(0xFFF5F5F7);
+const double _kCardCorner = 24;
+const Color _kEditPillBg = Color(0xFFE8EAF6);
+const Color _kEditPillFg = Color(0xFF2563EB);
+const Color _kBadgeRedBg = Color(0xFFFFF0F0);
+const Color _kBadgeRedFg = Color(0xFFFF5252);
+
+Widget _avatarPlaceholder(double size) {
   return Container(
     width: size,
     height: size,
-    color: AppColors.primarySoft,
+    decoration: const BoxDecoration(
+      color: Color(0xFFE8EAED),
+      shape: BoxShape.circle,
+    ),
     alignment: Alignment.center,
-    child: Text(
-      displayName.isNotEmpty ? displayName[0] : '?',
-      style: TextStyle(
-        fontSize: size * 0.375,
-        color: AppColors.primary,
-        fontWeight: FontWeight.w600,
-      ),
+    child: Icon(
+      AppIcons.person_outline,
+      size: size * 0.45,
+      color: const Color(0xFF9AA0A6),
     ),
   );
 }
@@ -37,9 +45,10 @@ class MyPageScreen extends ConsumerWidget {
     final photoUrl = user?.photoURL;
     final uid = user?.uid;
     final mode = ref.watch(profileModeProvider);
+    final bottomSafe = AppSpacing.bottomForFloatingShell(context);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _kPageBg,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(AppIcons.chevron_left),
@@ -54,14 +63,19 @@ class MyPageScreen extends ConsumerWidget {
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: _kPageBg,
         elevation: 0,
-        surfaceTintColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.sm),
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.listHorizontal,
+          AppSpacing.sm,
+          AppSpacing.listHorizontal,
+          bottomSafe,
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _ProfileHeaderBlock(
               uid: uid,
@@ -69,15 +83,14 @@ class MyPageScreen extends ConsumerWidget {
               photoUrl: photoUrl,
             ),
             if (mode == ProfileMode.seller) ...[
-              const SizedBox(height: 24),
-              _BalanceBlock(uid: uid),
-              const SizedBox(height: 24),
-            ] else
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+              _TotalEarningCard(uid: uid),
+            ],
+            const SizedBox(height: 20),
             if (mode == ProfileMode.buyer)
-              _BuyerMenuList()
+              _BuyerGroupedMenus(uid: uid)
             else
-              _SellerMenuList(),
+              _SellerGroupedMenus(uid: uid),
           ],
         ),
       ),
@@ -109,141 +122,81 @@ class _ProfileHeaderBlock extends StatelessWidget {
         final dbPhoto = (data['photoURL'] as String?)?.trim();
         final effectivePhoto = (dbPhoto == null || dbPhoto.isEmpty) ? photoUrl : dbPhoto;
 
-        final ratingRaw = data['rating'];
-        final reviewCountRaw = data['reviewCount'];
-        final verifiedRaw = data['isVerified'] ?? data['verified'] ?? data['identityVerified'];
-        final bio = (data['bio'] as String?)?.trim() ?? '';
-        final hourlyRateRaw = data['hourlyRate'];
-        final hourlyRate = hourlyRateRaw is num ? hourlyRateRaw.toInt() : null;
+        const avatarSize = 72.0;
 
-        final rating = ratingRaw is num ? ratingRaw.toDouble() : 0.0;
-        final reviewCount = reviewCountRaw is num ? reviewCountRaw.toInt() : 0;
-        final verified = verifiedRaw is bool ? verifiedRaw : false;
-
-        final r = (rating.isFinite ? rating : 0.0).clamp(0.0, 5.0);
-        final full = r.floor().clamp(0, 5);
-        final hasHalf = (r - full) >= 0.5 && full < 5;
-
-        return InkWell(
-          onTap: () => context.push('/settings/profile'),
-          borderRadius: BorderRadius.circular(AppRadii.md),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Row(
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 ClipOval(
                   child: effectivePhoto != null && effectivePhoto.isNotEmpty
                       ? CachedNetworkImage(
                           imageUrl: effectivePhoto,
-                          width: 64,
-                          height: 64,
+                          width: avatarSize,
+                          height: avatarSize,
                           fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) =>
-                              _avatarPlaceholder(effectiveName, 64),
+                          errorWidget: (_, __, ___) => _avatarPlaceholder(avatarSize),
                         )
-                      : SizedBox(
-                          width: 64,
-                          height: 64,
-                          child: _avatarPlaceholder(effectiveName, 64),
-                        ),
+                      : _avatarPlaceholder(avatarSize),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            effectiveName,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(AppIcons.chevron_right, size: 20, color: AppColors.textSecondary),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          ...List.generate(5, (i) {
-                            IconData icon;
-                            if (i < full) {
-                              icon = AppIcons.star;
-                            } else if (i == full && hasHalf) {
-                              icon = AppIcons.star_half;
-                            } else {
-                              icon = AppIcons.star_border;
-                            }
-                            return Icon(
-                              icon,
-                              size: 18,
-                              color: AppColors.warning,
-                            );
-                          }),
-                          const SizedBox(width: 6),
-                          Text(
-                            reviewCount.toString(),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          if (verified) ...[
-                            const SizedBox(width: 12),
-                            const Icon(AppIcons.verified, size: 18, color: AppColors.success),
-                            const SizedBox(width: 4),
-                            Text(
-                              '本人確認済',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.blue.shade700,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      if (hourlyRate != null)
-                        Text(
-                          '¥$hourlyRate / 時間',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      if (bio.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          bio,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ],
+                  child: Text(
+                    effectiveName,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                      height: 1.2,
+                      letterSpacing: -0.3,
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 14),
+            InkWell(
+              onTap: () => context.push('/settings/profile'),
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _kEditPillBg,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'アカウントを編集する',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _kEditPillFg,
+                        letterSpacing: -0.1,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      AppIcons.chevron_right,
+                      size: 14,
+                      color: _kEditPillFg,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
   }
 }
 
-/// 出品者向けのみ表示（購入者プロフィールでは非表示）
-class _BalanceBlock extends StatelessWidget {
-  const _BalanceBlock({required this.uid});
+class _TotalEarningCard extends StatelessWidget {
+  const _TotalEarningCard({required this.uid});
 
   final String? uid;
 
@@ -256,48 +209,348 @@ class _BalanceBlock extends StatelessWidget {
       builder: (context, snapshot) {
         int balance = 0;
         if (snapshot.hasData && snapshot.data!.data() != null) {
-          final data = snapshot.data!.data()!;
-          final raw = data['walletBalance'];
-          if (raw is num) {
-            balance = raw.toInt();
-          }
+          final raw = snapshot.data!.data()!['walletBalance'];
+          if (raw is num) balance = raw.toInt();
         }
-
         final formatted = '¥${NumberFormat('#,###').format(balance)}';
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '売上残高',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textPrimary,
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(_kCardCorner),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF1E1B4B),
+                Color(0xFF172554),
+                Color(0xFF0F172A),
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TOTAL EARNING',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.8,
+                        color: Colors.white.withValues(alpha: 0.55),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      formatted,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: uid == null ? null : () => context.push('/mypage/withdraw'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  backgroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  formatted,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                child: const Text(
+                  '振込申請',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
                   ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MenuCard extends StatelessWidget {
+  const _MenuCard({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(_kCardCorner),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: children,
+      ),
+    );
+  }
+}
+
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({
+    required this.icon,
+    required this.iconBg,
+    required this.iconColor,
+    required this.title,
+    required this.onTap,
+    this.trailing,
+    this.showDividerBelow = true,
+  });
+
+  final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
+  final String title;
+  final VoidCallback onTap;
+  final Widget? trailing;
+  final bool showDividerBelow;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          color: Colors.white,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: iconBg,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(icon, size: 22, color: iconColor),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                  if (trailing != null) ...[
+                    trailing!,
+                    const SizedBox(width: 6),
+                  ],
+                  Icon(
+                    AppIcons.chevron_right,
+                    size: 18,
+                    color: AppColors.textSecondary.withValues(alpha: 0.65),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (showDividerBelow)
+          Padding(
+            padding: const EdgeInsets.only(left: 76),
+            child: Divider(height: 1, thickness: 1, color: AppColors.border.withValues(alpha: 0.65)),
+          ),
+      ],
+    );
+  }
+}
+
+Widget _trailingGray(String text) {
+  return Text(
+    text,
+    style: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      color: AppColors.textSecondary.withValues(alpha: 0.9),
+    ),
+  );
+}
+
+Widget _badgeNotSubmitted() {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    decoration: BoxDecoration(
+      color: _kBadgeRedBg,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: const Text(
+      '未提出',
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: _kBadgeRedFg,
+      ),
+    ),
+  );
+}
+
+class _SellerGroupedMenus extends StatelessWidget {
+  const _SellerGroupedMenus({required this.uid});
+
+  final String? uid;
+
+  @override
+  Widget build(BuildContext context) {
+    if (uid == null) {
+      return _guestMenuCards(context);
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+      builder: (context, snap) {
+        final data = snap.data?.data() ?? <String, dynamic>{};
+        final reviewCountRaw = data['reviewCount'];
+        final reviewCount = reviewCountRaw is num ? reviewCountRaw.toInt() : 0;
+        final verifiedRaw = data['isVerified'] ?? data['verified'] ?? data['identityVerified'];
+        final verified = verifiedRaw is bool ? verifiedRaw : false;
+        final user = FirebaseAuth.instance.currentUser;
+        final snsLinked = user != null && user.providerData.length > 1;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _MenuCard(
+              children: [
+                _MenuRow(
+                  icon: Icons.manage_accounts_rounded,
+                  iconBg: const Color(0xFFF3F4F6),
+                  iconColor: const Color(0xFF64748B),
+                  title: 'プロフィール・出品設定',
+                  onTap: () => context.push('/settings/profile'),
+                ),
+                _MenuRow(
+                  icon: AppIcons.star,
+                  iconBg: const Color(0xFFFFFBEB),
+                  iconColor: const Color(0xFFF59E0B),
+                  title: '評価・レビュー',
+                  trailing: _trailingGray('$reviewCount件'),
+                  onTap: () => context.push('/people/$uid'),
+                  showDividerBelow: false,
                 ),
               ],
             ),
-            const Spacer(),
-            OutlinedButton(
-              onPressed: uid == null ? null : () => context.push('/mypage/withdraw'),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.border),
-                foregroundColor: AppColors.textPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.md),
-              ),
-              child: const Text('売上を出金'),
+            const SizedBox(height: 14),
+            _MenuCard(
+              children: [
+                _MenuRow(
+                  icon: AppIcons.verified_user_outlined,
+                  iconBg: const Color(0xFFECFDF5),
+                  iconColor: const Color(0xFF10B981),
+                  title: '本人確認 (eKYC)',
+                  trailing: verified ? _trailingGray('確認済') : _badgeNotSubmitted(),
+                  onTap: () => context.push('/settings/identity'),
+                ),
+                _MenuRow(
+                  icon: AppIcons.link,
+                  iconBg: const Color(0xFFF5F3FF),
+                  iconColor: const Color(0xFF7C3AED),
+                  title: 'SNS連携設定',
+                  trailing: _trailingGray(snsLinked ? '連携済' : '未設定'),
+                  onTap: () => context.push('/settings/account'),
+                  showDividerBelow: false,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _MenuCard(
+              children: [
+                _MenuRow(
+                  icon: AppIcons.favorite,
+                  iconBg: const Color(0xFFFDF2F8),
+                  iconColor: const Color(0xFFE11D48),
+                  title: 'お気に入りリスト',
+                  onTap: () => context.push('/mypage/likes'),
+                ),
+                _MenuRow(
+                  icon: AppIcons.account_balance_wallet_outlined,
+                  iconBg: const Color(0xFFF3F4F6),
+                  iconColor: const Color(0xFF6B7280),
+                  title: 'お支払い・売上管理',
+                  onTap: () => context.push('/mypage/transactions'),
+                ),
+                _MenuRow(
+                  icon: AppIcons.help_outline,
+                  iconBg: const Color(0xFFEFF6FF),
+                  iconColor: const Color(0xFF2563EB),
+                  title: 'ヘルプ・お問い合わせ',
+                  onTap: () => context.push('/help'),
+                  showDividerBelow: false,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _MenuCard(
+              children: [
+                _MenuRow(
+                  icon: AppIcons.grid_view_outlined,
+                  iconBg: const Color(0xFFF0FDFA),
+                  iconColor: const Color(0xFF0D9488),
+                  title: '出品一覧',
+                  onTap: () => context.push('/mypage/listings'),
+                ),
+                _MenuRow(
+                  icon: AppIcons.account_balance_wallet,
+                  iconBg: const Color(0xFFEEF2FF),
+                  iconColor: const Color(0xFF4F46E5),
+                  title: 'Stripeアカウント連携',
+                  onTap: () => context.push('/mypage/stripe'),
+                ),
+                _MenuRow(
+                  icon: AppIcons.notifications_outlined,
+                  iconBg: const Color(0xFFFFF7ED),
+                  iconColor: const Color(0xFFEA580C),
+                  title: '通知設定',
+                  onTap: () => context.push('/settings/notifications'),
+                  showDividerBelow: false,
+                ),
+              ],
             ),
           ],
         );
@@ -306,144 +559,130 @@ class _BalanceBlock extends StatelessWidget {
   }
 }
 
-class _BuyerMenuList extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    // 依頼・取引は上の統計カードから開けるためメニューでは省略
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _MenuTile(
-          icon: AppIcons.settings,
-          label: 'アカウント設定',
-          onTap: () => context.push('/settings/account'),
-        ),
-        const SizedBox(height: 8),
-        _MenuTile(
-          icon: AppIcons.favorite_border,
-          label: 'いいねリスト',
-          onTap: () => context.push('/mypage/likes'),
-        ),
-        const SizedBox(height: 8),
-        _MenuTile(
-          icon: AppIcons.notifications_outlined,
-          label: '通知設定',
-          onTap: () => context.push('/settings/notifications'),
-        ),
-        const SizedBox(height: 8),
-        _MenuTile(
-          icon: AppIcons.verified_user_outlined,
-          label: '本人確認',
-          onTap: () => context.push('/settings/identity'),
-        ),
-        const SizedBox(height: 8),
-        _MenuTile(
-          icon: AppIcons.help_outline,
-          label: 'ヘルプ/お問い合わせ',
-          onTap: () => context.push('/help'),
-        ),
-      ],
-    );
-  }
-}
-
-class _SellerMenuList extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    // 新規依頼・取引・完了は統計カードから。出品一覧とStripeはここだけ
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _MenuTile(
-          icon: AppIcons.settings,
-          label: 'アカウント設定',
-          onTap: () => context.push('/settings/account'),
-        ),
-        const SizedBox(height: 8),
-        _MenuTile(
-          icon: AppIcons.grid_view_outlined,
-          label: '出品一覧',
-          onTap: () => context.push('/mypage/listings'),
-        ),
-        const SizedBox(height: 8),
-        _MenuTile(
-          icon: AppIcons.account_balance_wallet_outlined,
-          label: 'Stripeアカウント連携',
-          onTap: () => context.push('/mypage/stripe'),
-        ),
-        const SizedBox(height: 8),
-        _MenuTile(
-          icon: AppIcons.favorite_border,
-          label: 'いいねしてくれたユーザー',
-          onTap: () => context.push('/mypage/likes'),
-        ),
-        const SizedBox(height: 8),
-        _MenuTile(
-          icon: AppIcons.notifications_outlined,
-          label: '通知設定',
-          onTap: () => context.push('/settings/notifications'),
-        ),
-        const SizedBox(height: 8),
-        _MenuTile(
-          icon: AppIcons.verified_user_outlined,
-          label: '本人確認',
-          onTap: () => context.push('/settings/identity'),
-        ),
-        const SizedBox(height: 8),
-        _MenuTile(
-          icon: AppIcons.help_outline,
-          label: 'ヘルプ/お問い合わせ',
-          onTap: () => context.push('/help'),
-        ),
-      ],
-    );
-  }
-}
-
-class _MenuTile extends StatelessWidget {
-  const _MenuTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.grey.shade100,
-      borderRadius: BorderRadius.circular(AppRadii.sm),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.sm),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadii.sm),
-            border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+Widget _guestMenuCards(BuildContext context) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _MenuCard(
+        children: [
+          _MenuRow(
+            icon: Icons.manage_accounts_rounded,
+            iconBg: const Color(0xFFF3F4F6),
+            iconColor: const Color(0xFF64748B),
+            title: 'プロフィール・出品設定',
+            onTap: () => context.push('/settings/profile'),
+            showDividerBelow: false,
           ),
-          child: Row(
-            children: [
-              Icon(icon, size: 22, color: AppColors.textSecondary),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              Icon(AppIcons.chevron_right, size: 20, color: AppColors.textSecondary),
-            ],
-          ),
-        ),
+        ],
       ),
+    ],
+  );
+}
+
+class _BuyerGroupedMenus extends StatelessWidget {
+  const _BuyerGroupedMenus({required this.uid});
+
+  final String? uid;
+
+  @override
+  Widget build(BuildContext context) {
+    if (uid == null) {
+      return _guestMenuCards(context);
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+      builder: (context, snap) {
+        final data = snap.data?.data() ?? <String, dynamic>{};
+        final reviewCountRaw = data['reviewCount'];
+        final reviewCount = reviewCountRaw is num ? reviewCountRaw.toInt() : 0;
+        final verifiedRaw = data['isVerified'] ?? data['verified'] ?? data['identityVerified'];
+        final verified = verifiedRaw is bool ? verifiedRaw : false;
+        final user = FirebaseAuth.instance.currentUser;
+        final snsLinked = user != null && user.providerData.length > 1;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _MenuCard(
+              children: [
+                _MenuRow(
+                  icon: Icons.manage_accounts_rounded,
+                  iconBg: const Color(0xFFF3F4F6),
+                  iconColor: const Color(0xFF64748B),
+                  title: 'プロフィール設定',
+                  onTap: () => context.push('/settings/profile'),
+                ),
+                _MenuRow(
+                  icon: AppIcons.star,
+                  iconBg: const Color(0xFFFFFBEB),
+                  iconColor: const Color(0xFFF59E0B),
+                  title: '評価・レビュー',
+                  trailing: _trailingGray('$reviewCount件'),
+                  onTap: () => context.push('/people/$uid'),
+                  showDividerBelow: false,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _MenuCard(
+              children: [
+                _MenuRow(
+                  icon: AppIcons.verified_user_outlined,
+                  iconBg: const Color(0xFFECFDF5),
+                  iconColor: const Color(0xFF10B981),
+                  title: '本人確認 (eKYC)',
+                  trailing: verified ? _trailingGray('確認済') : _badgeNotSubmitted(),
+                  onTap: () => context.push('/settings/identity'),
+                ),
+                _MenuRow(
+                  icon: AppIcons.link,
+                  iconBg: const Color(0xFFF5F3FF),
+                  iconColor: const Color(0xFF7C3AED),
+                  title: 'SNS連携設定',
+                  trailing: _trailingGray(snsLinked ? '連携済' : '未設定'),
+                  onTap: () => context.push('/settings/account'),
+                  showDividerBelow: false,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _MenuCard(
+              children: [
+                _MenuRow(
+                  icon: AppIcons.favorite,
+                  iconBg: const Color(0xFFFDF2F8),
+                  iconColor: const Color(0xFFE11D48),
+                  title: 'お気に入りリスト',
+                  onTap: () => context.push('/mypage/likes'),
+                ),
+                _MenuRow(
+                  icon: AppIcons.settings,
+                  iconBg: const Color(0xFFF3F4F6),
+                  iconColor: const Color(0xFF6B7280),
+                  title: 'アカウント設定',
+                  onTap: () => context.push('/settings/account'),
+                ),
+                _MenuRow(
+                  icon: AppIcons.notifications_outlined,
+                  iconBg: const Color(0xFFFFF7ED),
+                  iconColor: const Color(0xFFEA580C),
+                  title: '通知設定',
+                  onTap: () => context.push('/settings/notifications'),
+                ),
+                _MenuRow(
+                  icon: AppIcons.help_outline,
+                  iconBg: const Color(0xFFEFF6FF),
+                  iconColor: const Color(0xFF2563EB),
+                  title: 'ヘルプ・お問い合わせ',
+                  onTap: () => context.push('/help'),
+                  showDividerBelow: false,
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/config/app_theme.dart';
 import '../../../../core/ui/app_icons.dart';
+import '../../../../core/ui/user_favorite_button.dart';
 
 class PersonProfileScreen extends ConsumerStatefulWidget {
   const PersonProfileScreen({super.key, required this.userId});
@@ -154,9 +155,10 @@ class _PersonProfileScreenState extends ConsumerState<PersonProfileScreen> {
                         onTap: () => Navigator.of(context).pop(),
                       ),
                       const Spacer(),
-                      _CircleIconButton(
-                        icon: AppIcons.favorite_border,
-                        onTap: () {},
+                      UserFavoriteButton(
+                        targetUserId: widget.userId,
+                        compact: false,
+                        backgroundAlpha: 0.45,
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       _CircleIconButton(

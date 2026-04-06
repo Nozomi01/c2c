@@ -1,14 +1,40 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/config/app_theme.dart';
 import '../../../../core/ui/app_icons.dart';
 import '../../domain/models/chat.dart';
 import '../providers/chat_providers.dart';
+
+final List<BoxShadow> _kChatCardShadow = [
+  const BoxShadow(
+    color: Color(0x14000000),
+    blurRadius: 14,
+    offset: Offset(0, 4),
+  ),
+  const BoxShadow(
+    color: Color(0x08000000),
+    blurRadius: 6,
+    offset: Offset(0, 2),
+  ),
+];
+
+const double _kChatCardRadius = 22;
+
+/// Time in header row: today → HH:mm, else M/d
+String _formatChatListTime(DateTime? t) {
+  if (t == null) return '';
+  final now = DateTime.now();
+  if (t.year == now.year && t.month == now.month && t.day == now.day) {
+    return DateFormat('HH:mm').format(t);
+  }
+  return DateFormat('M/d').format(t);
+}
 
 class ChatListScreen extends ConsumerWidget {
   const ChatListScreen({super.key});
@@ -47,9 +73,14 @@ class ChatListScreen extends ConsumerWidget {
             );
           }
           return ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.listHorizontal,
+              12,
+              AppSpacing.listHorizontal,
+              8 + AppSpacing.bottomForFloatingShell(context),
+            ),
             itemCount: chatsWithUnread.length,
-            separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               final item = chatsWithUnread[index];
               final otherId = item.chat.users.firstWhere((u) => u != user.uid, orElse: () => '');
@@ -71,18 +102,40 @@ class ChatListScreen extends ConsumerWidget {
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
+      centerTitle: false,
+      titleSpacing: AppSpacing.listHorizontal,
       title: const Text(
         'メッセージ',
         style: TextStyle(
           color: AppColors.textPrimary,
-          fontWeight: FontWeight.bold,
-          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          fontSize: 22,
+          letterSpacing: -0.3,
         ),
       ),
-      centerTitle: true,
       backgroundColor: Colors.white,
       elevation: 0,
-      surfaceTintColor: Colors.white,
+      scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.transparent,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(
+          height: 1,
+          color: const Color(0xFFF3F4F6),
+        ),
+      ),
+      actions: [
+        IconButton(
+          tooltip: '通知',
+          onPressed: () => context.push('/notifications'),
+          style: IconButton.styleFrom(
+            backgroundColor: const Color(0xFFF3F4F6),
+            foregroundColor: AppColors.textSecondary,
+          ),
+          icon: const Icon(AppIcons.notifications_outlined, size: 22),
+        ),
+        const SizedBox(width: 8),
+      ],
     );
   }
 }
@@ -104,151 +157,215 @@ class _ChatListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeStr = chat.updatedAt != null
-        ? DateFormat('M/d HH:mm').format(chat.updatedAt!)
-        : '';
+    final timeStr = _formatChatListTime(chat.updatedAt);
 
     if (otherUserId.isEmpty) {
-      return _buildTile(
-        context,
+      return _ChatCard(
+        onTap: onTap,
         title: 'チャット',
         timeStr: timeStr,
+        preview: chat.lastMessage ?? 'メッセージを送信しましょう',
+        unreadCount: unreadCount,
+        photoUrl: null,
+        isVerified: false,
       );
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(otherUserId)
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('users').doc(otherUserId).snapshots(),
       builder: (context, userSnap) {
         final data = userSnap.data?.data() ?? <String, dynamic>{};
         final name = (data['displayName'] as String?)?.trim();
         final email = (data['email'] as String?)?.trim();
-        final emailPrefix = email != null && email.contains('@')
-            ? email.split('@').first
-            : null;
-        final title =
-            (name == null || name.isEmpty) ? (emailPrefix ?? 'ユーザー') : name;
+        final emailPrefix = email != null && email.contains('@') ? email.split('@').first : null;
+        final title = (name == null || name.isEmpty) ? (emailPrefix ?? 'ユーザー') : name;
+        final photoUrl = (data['photoURL'] as String?)?.trim();
+        final verifiedRaw = data['isVerified'] ?? data['verified'];
+        final isVerified = verifiedRaw == true;
 
-        return _buildTile(
-          context,
+        return _ChatCard(
+          onTap: onTap,
           title: title,
           timeStr: timeStr,
+          preview: chat.lastMessage ?? 'メッセージを送信しましょう',
+          unreadCount: unreadCount,
+          photoUrl: (photoUrl != null && photoUrl.isNotEmpty) ? photoUrl : null,
+          isVerified: isVerified,
         );
       },
     );
   }
+}
 
-  Widget _buildTile(
-    BuildContext context, {
-    required String title,
-    required String timeStr,
-  }) {
-    return Material(
-      color: Colors.white,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.listHorizontal, vertical: AppSpacing.md),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 68,
-                height: 56,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.centerLeft,
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: AppColors.primarySoft,
-                      child: Text(
-                        title.isNotEmpty ? title[0] : '?',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    if (unreadCount > 0)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade600,
-                            borderRadius: BorderRadius.circular(AppRadii.md),
-                          ),
-                          constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                          child: Center(
-                            child: Text(
-                              unreadCount > 99 ? '99+' : '$unreadCount',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+class _ChatCard extends StatelessWidget {
+  const _ChatCard({
+    required this.onTap,
+    required this.title,
+    required this.timeStr,
+    required this.preview,
+    required this.unreadCount,
+    required this.photoUrl,
+    required this.isVerified,
+  });
+
+  final VoidCallback onTap;
+  final String title;
+  final String timeStr;
+  final String preview;
+  final int unreadCount;
+  final String? photoUrl;
+  final bool isVerified;
+
+  static const Color _timeColor = Color(0xFF818CF8);
+  static const Color _previewColor = Color(0xFF6B7280);
+
+  @override
+  Widget build(BuildContext context) {
+    final r = BorderRadius.circular(_kChatCardRadius);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: r,
+        boxShadow: _kChatCardShadow,
+      ),
+      child: ClipRRect(
+        borderRadius: r,
+        child: Material(
+          color: Colors.white,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
                       children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: unreadCount > 0
-                                  ? FontWeight.bold
-                                  : FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        ClipOval(
+                          child: photoUrl != null
+                              ? CachedNetworkImage(
+                                  imageUrl: photoUrl!,
+                                  width: 56,
+                                  height: 56,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, __, ___) => _avatarFallback(title),
+                                )
+                              : _avatarFallback(title),
                         ),
-                        if (timeStr.isNotEmpty)
-                          Text(
-                            timeStr,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
+                        if (unreadCount > 0)
+                          Positioned(
+                            right: -2,
+                            top: -2,
+                            child: Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFF3B30),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                unreadCount > 99 ? '99+' : '$unreadCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1,
+                                ),
+                              ),
                             ),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      chat.lastMessage ?? 'メッセージを送信しましょう',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: unreadCount > 0
-                            ? AppColors.textPrimary
-                            : AppColors.textSecondary,
-                        fontWeight: unreadCount > 0
-                            ? FontWeight.w500
-                            : FontWeight.normal,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      title,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.textPrimary,
+                                        letterSpacing: -0.2,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isVerified) ...[
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      AppIcons.verified,
+                                      size: 17,
+                                      color: Color(0xFF1DA1F2),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            if (timeStr.isNotEmpty)
+                              Text(
+                                timeStr,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: _timeColor,
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          preview,
+                          style: TextStyle(
+                            fontSize: 14,
+                            height: 1.25,
+                            fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.w500,
+                            color: unreadCount > 0 ? AppColors.textPrimary : _previewColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const Icon(AppIcons.chevron_right, color: AppColors.textSecondary),
-            ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _avatarFallback(String title) {
+    return Container(
+      width: 56,
+      height: 56,
+      color: const Color(0xFFE8EAED),
+      alignment: Alignment.center,
+      child: Text(
+        title.isNotEmpty ? String.fromCharCode(title.runes.first) : '?',
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF9CA3AF),
         ),
       ),
     );

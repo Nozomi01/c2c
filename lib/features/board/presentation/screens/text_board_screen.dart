@@ -344,11 +344,11 @@ class _TextBoardScreenState extends State<TextBoardScreen> {
                 }
 
                 return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(
+                  padding: EdgeInsets.fromLTRB(
                     AppSpacing.listHorizontal,
                     AppSpacing.sm,
                     AppSpacing.listHorizontal,
-                    88,
+                    AppSpacing.bottomForFloatingShell(context),
                   ),
                   itemCount: docs.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
